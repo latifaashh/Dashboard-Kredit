@@ -120,31 +120,6 @@ CSV_PATH = BASE_DIR / "fact_pinjaman_final.csv"
 
 fact = pd.read_csv(CSV_PATH)
 
-dim_nasabah = pd.read_csv(
-    f"{DATA_PATH}/dim_nasabah.csv"
-)
-
-
-dim_produk = pd.read_csv(
-    f"{DATA_PATH}/dim_produk.csv"
-)
-
-
-dim_cabang = pd.read_csv(
-    f"{DATA_PATH}/dim_cabang.csv"
-)
-
-
-dim_petugas = pd.read_csv(
-    f"{DATA_PATH}/dim_petugas.csv"
-)
-
-
-dim_waktu = pd.read_csv(
-    f"{DATA_PATH}/dim_waktu.csv"
-)
-
-
 # ============================================================
 # TAMBAHKAN DIMENSI KE FACT
 # ============================================================
