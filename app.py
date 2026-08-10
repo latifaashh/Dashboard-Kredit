@@ -100,65 +100,61 @@ try:
 except Exception as e:
     st.error(f"Gagal membaca file CSV: {e}")
     st.stop()
+    
+# ============================================================
+# LOAD JADWAL ANGSURAN
+# ============================================================
 
-# ------------------------------------------------------------
-# DETAIL ANGSURAN
-# ------------------------------------------------------------
-
-detail_candidate_paths = [
-
-    BASE_DIR / "data_final" / "data_final" / "detail_angsuran.csv",
-
-    BASE_DIR / "data_final" / "detail_angsuran.csv",
-
-    BASE_DIR / "detail_angsuran.csv",
-
+jadwal_paths = [
+    BASE_DIR / "data_final" / "data_final" / "jadwal_angsuran.csv",
+    BASE_DIR / "data_final" / "jadwal_angsuran.csv",
+    BASE_DIR / "jadwal_angsuran.csv",
 ]
 
-
-DETAIL_ANGSURAN_PATH = next(
-    (
-        p
-        for p in detail_candidate_paths
-        if p.exists()
-    ),
+JADWAL_PATH = next(
+    (p for p in jadwal_paths if p.exists()),
     None
 )
 
-
-if DETAIL_ANGSURAN_PATH is None:
-
-    st.error(
-        "File detail_angsuran.csv tidak ditemukan."
-    )
-
-    st.write(
-        "Path yang dicari:",
-        [
-            str(p)
-            for p in detail_candidate_paths
-        ]
-    )
-
+if JADWAL_PATH is None:
+    st.error("File jadwal_angsuran.csv tidak ditemukan.")
+    st.write([
+        str(p) for p in jadwal_paths
+    ])
     st.stop()
 
+jadwal_angsuran = pd.read_csv(
+    JADWAL_PATH,
+    low_memory=False
+)
 
-try:
 
-    detail_angsuran = pd.read_csv(
-        DETAIL_ANGSURAN_PATH,
-        low_memory=False
-    )
+# ============================================================
+# LOAD PEMBAYARAN ANGSURAN
+# ============================================================
 
-except Exception as e:
+pembayaran_paths = [
+    BASE_DIR / "data_final" / "data_final" / "pembayaran_angsuran.csv",
+    BASE_DIR / "data_final" / "pembayaran_angsuran.csv",
+    BASE_DIR / "pembayaran_angsuran.csv",
+]
 
-    st.error(
-        f"Gagal membaca detail_angsuran.csv: {e}"
-    )
+PEMBAYARAN_PATH = next(
+    (p for p in pembayaran_paths if p.exists()),
+    None
+)
 
+if PEMBAYARAN_PATH is None:
+    st.error("File pembayaran_angsuran.csv tidak ditemukan.")
+    st.write([
+        str(p) for p in pembayaran_paths
+    ])
     st.stop()
 
-
+pembayaran_angsuran = pd.read_csv(
+    PEMBAYARAN_PATH,
+    low_memory=False
+)
 # ------------------------------------------------------------
 # KONVERSI DPD
 # ------------------------------------------------------------
