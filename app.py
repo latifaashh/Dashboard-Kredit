@@ -164,6 +164,43 @@ try:
         low_memory=False
     )
 
+# ============================================================
+# LOAD DETAIL ANGSURAN
+# ============================================================
+
+DETAIL_PATHS = [
+    BASE_DIR / "data_final" / "data_final" / "detail_angsuran.csv",
+    BASE_DIR / "data_final" / "detail_angsuran.csv",
+    BASE_DIR / "detail_angsuran.csv",
+]
+
+DETAIL_PATH = next(
+    (p for p in DETAIL_PATHS if p.exists()),
+    None
+)
+
+if DETAIL_PATH is None:
+    st.error(
+        "File detail_angsuran.csv tidak ditemukan."
+    )
+
+    st.write(
+        "Simpan detail_angsuran.csv di folder:",
+        "data_final/"
+    )
+
+    st.stop()
+
+detail_angsuran = pd.read_csv(
+    DETAIL_PATH,
+    low_memory=False
+)
+
+detail_angsuran["hari_keterlambatan"] = pd.to_numeric(
+    detail_angsuran["hari_keterlambatan"],
+    errors="coerce"
+)
+
 except Exception as e:
 
     st.error(
@@ -249,30 +286,33 @@ agunan = find_col(
     ]
 )
 
-
 # ============================================================
 # DPD
 # ============================================================
 
-# PRIORITAS UTAMA:
-# hari_keterlambatan
-#
-# BUKAN:
-# hari_tunggakan_terlama
-#
-# karena pertanyaan analitik menggunakan
-# rata-rata keterlambatan pembayaran angsuran.
+# Ambil pinjaman yang sedang terpilih setelah filter
 
-hari_keterlambatan = find_col(
-    fact,
-    [
-        "hari_keterlambatan"
-    ]
+filtered_pinjaman = df[
+    [pid]
+].drop_duplicates()
+
+
+# Hubungkan detail angsuran dengan pinjaman yang terfilter
+
+detail_dpd = detail_angsuran.merge(
+    filtered_pinjaman,
+    left_on="pinjaman_id",
+    right_on=pid,
+    how="inner"
 )
 
 
-# Kolom ini hanya digunakan sebagai informasi cadangan,
-# BUKAN untuk KPI DPD utama.
+# Rata-rata DPD keseluruhan
+
+avg_dpd = detail_dpd[
+    "hari_keterlambatan"
+].mean()
+
 
 tunggakan = find_col(
     fact,
@@ -820,23 +860,13 @@ with k4:
         f"{npl_rate:.2f}%"
     )
 
-
 with k5:
-
-    if pd.notna(avg_dpd):
-
-        st.metric(
-            "Rata-rata DPD",
-            f"{avg_dpd:.2f} hari"
-        )
-
-    else:
-
-        st.metric(
-            "Rata-rata DPD",
-            "N/A"
-        )
-
+    st.metric(
+        "Rata-rata DPD",
+        f"{avg_dpd:.2f} hari"
+        if pd.notna(avg_dpd)
+        else "N/A"
+    )
 
 # ============================================================
 # NPL PER CABANG
