@@ -556,8 +556,6 @@ total_realisasi = (
 # KPI UTAMA PORTOFOLIO
 # ============================================================
 
-st.header("Ringkasan Portofolio")
-
 k1, k2, k3 = st.columns(3)
 
 with k1:
