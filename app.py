@@ -749,13 +749,6 @@ with k1:
     )
 
 
-with k2:
-
-    st.metric(
-        "Total Plafon",
-        rupiah(total_plafon)
-    )
-
 
 with k3:
 
