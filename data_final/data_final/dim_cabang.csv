@@ -1,0 +1,23 @@
+cabang_id,nama_cabang,kota,provinsi,wilayah,tanggal_operasional
+CB01,KC Denpasar,Denpasar,Bali,Wilayah II,2020-10-26
+CB02,KC Jember,Jember,Jawa Timur,Wilayah I,2013-02-19
+CB03,KC Bandung,Bandung,Jawa Barat,Wilayah I,2016-03-25
+CB04,KC Malang,Malang,Jawa Timur,Wilayah I,2018-12-24
+CB05,KC Bogor,Bogor,Jawa Barat,Wilayah I,2016-05-19
+CB06,KC Bogor,Bogor,Jawa Barat,Wilayah I,2020-03-02
+CB07,KC Solo,Solo,Jawa Tengah,Wilayah II,2017-03-11
+CB08,KC Jember,Jember,Jawa Timur,Wilayah III,2010-08-05
+CB09,KC Jember,Jember,Jawa Timur,Wilayah III,2014-07-05
+CB10,KC Medan,Medan,Sumatera Utara,Wilayah III,2011-09-22
+CB11,KC Makassar,Makassar,Sulawesi Selatan,Wilayah III,2015-01-21
+CB12,KC Pematangsiantar,Pematangsiantar,Sumatera Utara,Wilayah I,2021-11-22
+CB13,KC Denpasar,Denpasar,Bali,Wilayah II,2016-11-23
+CB14,KC Singaraja,Singaraja,Bali,Wilayah III,2020-03-08
+CB15,KC Makassar,Makassar,Sulawesi Selatan,Wilayah II,2021-12-12
+CB16,KC Surabaya,Surabaya,Jawa Timur,Wilayah III,2017-08-15
+CB17,KC Parepare,Parepare,Sulawesi Selatan,Wilayah III,2016-01-14
+CB18,KC Semarang,Semarang,Jawa Tengah,Wilayah I,2020-02-04
+CB19,KC Kudus,Kudus,Jawa Tengah,Wilayah I,2014-12-03
+CB20,KC Sidoarjo,Sidoarjo,Jawa Timur,Wilayah II,2019-11-21
+CB21,KC Solo,Solo,Jawa Tengah,Wilayah II,2010-06-25
+CB22,KC Makassar,Makassar,Sulawesi Selatan,Wilayah III,2021-04-10
