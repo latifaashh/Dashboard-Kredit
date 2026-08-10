@@ -348,11 +348,6 @@ total_data_asli = len(fact)
 
 st.sidebar.header("🔎 Filter")
 
-st.sidebar.caption(
-    "Filter digunakan untuk melihat analisis berdasarkan "
-    "periode dan karakteristik portofolio."
-)
-
 # Tahun
 if "tahun_dashboard" in fact.columns:
 
