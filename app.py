@@ -34,40 +34,42 @@ def add_dim(fact, dim, key, attributes):
     if len(keep) > 1:
         return fact.merge(d[keep], on=key, how="left", validate="many_to_one")
     return fact
+    
+# ============================================================
+# LOAD DATA OTOMATIS DARI FOLDER DATA
+# ============================================================
 
-# ---------- upload ----------
-st.sidebar.header("📂 Data")
-fact_file = st.sidebar.file_uploader("fact_pinjaman_final.csv", type="csv")
+DATA_PATH = "data"
 
-with st.sidebar.expander("Tabel dimensi", expanded=False):
-    f_nasabah = st.file_uploader("dim_nasabah.csv", type="csv")
-    f_produk = st.file_uploader("dim_produk.csv", type="csv")
-    f_cabang = st.file_uploader("dim_cabang.csv", type="csv")
-    f_petugas = st.file_uploader("dim_petugas.csv", type="csv")
-    f_waktu = st.file_uploader("dim_waktu.csv", type="csv")
+fact = pd.read_csv(
+    f"{DATA_PATH}/fact_pinjaman_final.csv"
+)
 
-if fact_file is None:
-    st.info("Upload **fact_pinjaman_final.csv** terlebih dahulu.")
-    st.markdown("""
-**File hasil akhir yang digunakan:**
-- fact_pinjaman_final.csv → tabel utama
-- dim_nasabah.csv
-- dim_produk.csv
-- dim_cabang.csv
-- dim_petugas.csv
-- dim_waktu.csv
+dim_nasabah = pd.read_csv(
+    f"{DATA_PATH}/dim_nasabah.csv"
+)
 
-Target fact_pinjaman dari hasil pengolahan Anda: **3.400 baris**.
-""")
-    st.stop()
+dim_produk = pd.read_csv(
+    f"{DATA_PATH}/dim_produk.csv"
+)
 
-fact = pd.read_csv(fact_file)
+dim_cabang = pd.read_csv(
+    f"{DATA_PATH}/dim_cabang.csv"
+)
+
+dim_petugas = pd.read_csv(
+    f"{DATA_PATH}/dim_petugas.csv"
+)
+
+dim_waktu = pd.read_csv(
+    f"{DATA_PATH}/dim_waktu.csv"
+)
+
 dims = {
-    "nasabah": pd.read_csv(f_nasabah) if f_nasabah else None,
-    "produk": pd.read_csv(f_produk) if f_produk else None,
-    "cabang": pd.read_csv(f_cabang) if f_cabang else None,
-    "petugas": pd.read_csv(f_petugas) if f_petugas else None,
-    "waktu": pd.read_csv(f_waktu) if f_waktu else None,
+    "nasabah": dim_nasabah,
+    "produk": dim_produk,
+    "cabang": dim_cabang,
+    "petugas": dim_petugas
 }
 
 # Tambahkan atribut dimensi jika belum ada di fact
