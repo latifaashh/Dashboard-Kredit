@@ -109,9 +109,14 @@ def add_dim(
 # ============================================================
 # LOAD DATA
 # ============================================================
+import os
+import pandas as pd
 
-DATA_PATH = "fact_pinjaman_final.csv"
+DATA_PATH = "data"
 
+fact = pd.read_csv(
+    os.path.join(DATA_PATH, "fact_pinjaman_final.csv")
+)
 
 fact = pd.read_csv(
     f"{DATA_PATH}/fact_pinjaman_final.csv"
