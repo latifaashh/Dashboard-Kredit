@@ -39,7 +39,7 @@ def add_dim(fact, dim, key, attributes):
 # LOAD DATA OTOMATIS DARI FOLDER DATA
 # ============================================================
 
-DATA_PATH = "data"
+DATA_PATH = "data_powerbi"
 
 fact = pd.read_csv(
     f"{DATA_PATH}/fact_pinjaman_final.csv"
