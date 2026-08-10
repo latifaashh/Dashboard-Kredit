@@ -476,7 +476,7 @@ with k4:
 
 with k5:
     st.metric(
-        "Rata-rata Keterlambatan Pembayaran",
+        "Keterlambatan Pembayaran",
         f"{avg_dpd:.1f} hari"
         if pd.notna(avg_dpd)
         else "N/A"
