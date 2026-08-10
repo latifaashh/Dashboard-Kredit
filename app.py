@@ -574,7 +574,7 @@ with k3:
         rupiah(total_realisasi)
     )
     
- with k4:
+with k4:
     st.metric(
         "NPL",
         f"{npl_rate:.2f}%"
