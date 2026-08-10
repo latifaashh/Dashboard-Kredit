@@ -112,16 +112,13 @@ def add_dim(
 from pathlib import Path
 import pandas as pd
 
+# Lokasi folder tempat app.py berada
 BASE_DIR = Path(__file__).resolve().parent
 
-fact = pd.read_csv(
-    BASE_DIR / "fact_pinjaman_final.csv"
-)
+# File CSV berada satu folder dengan app.py
+CSV_PATH = BASE_DIR / "fact_pinjaman_final.csv"
 
-fact = pd.read_csv(
-    f"{DATA_PATH}/fact_pinjaman_final.csv"
-)
-
+fact = pd.read_csv(CSV_PATH)
 
 dim_nasabah = pd.read_csv(
     f"{DATA_PATH}/dim_nasabah.csv"
