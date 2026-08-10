@@ -652,7 +652,7 @@ else:
 # ============================================================
 
 st.divider()
-st.header("NPL Berdasarkan Status Agunan")
+st.header("Persentase Kredit Bermasalah Berdasarkan Status Agunan")
 
 if agunan is not None:
     df["status_agunan"] = np.where(
