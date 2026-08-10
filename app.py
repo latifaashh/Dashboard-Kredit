@@ -470,13 +470,13 @@ with k3:
 
 with k4:
     st.metric(
-        "NPL",
+        "Persentase Kredit Bermasalah",
         f"{npl_rate:.2f}%"
     )
 
 with k5:
     st.metric(
-        "Rata-rata DPD",
+        "Rata-rata Keterlambatan Pembayaran",
         f"{avg_dpd:.1f} hari"
         if pd.notna(avg_dpd)
         else "N/A"
