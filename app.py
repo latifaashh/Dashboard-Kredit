@@ -1,16 +1,16 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from pathlib import Path
 
 # ============================================================
 # KONFIGURASI HALAMAN
 # ============================================================
 
 st.set_page_config(
-    page_title="Dashboard Kredit Mikro",
+    page_title="Dashboard Risiko & Collection Kredit Mikro",
     page_icon="💰",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # ============================================================
@@ -19,39 +19,42 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+
     .main {
-        background-color: #f8f9fa;
+        background-color: #f8f9fc;
     }
 
-    .metric-card {
-        background-color: white;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
     }
 
     h1 {
         font-weight: 700;
     }
 
-    h2, h3 {
+    h2 {
+        font-weight: 650;
+    }
+
+    h3 {
         font-weight: 600;
     }
+
+    [data-testid="stMetric"] {
+        background-color: white;
+        padding: 15px;
+        border-radius: 12px;
+        border: 1px solid #eeeeee;
+    }
+
+    [data-testid="stMetricValue"] {
+        font-size: 27px;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
-# ============================================================
-# JUDUL
-# ============================================================
-
-st.title("💰 Dashboard Risiko & Collection Kredit Mikro")
-
-st.markdown(
-    """
-    Dashboard ini digunakan untuk menganalisis kualitas portofolio kredit mikro
-    berdasarkan **NPL, DPD, agunan, tunggakan, dan collection rate**.
-    """
-)
 
 # ============================================================
 # LOAD DATA
@@ -60,162 +63,41 @@ st.markdown(
 @st.cache_data
 def load_data():
 
-    df = pd.read_csv("fact_pinjaman_final.csv")
+    df = pd.read_csv(
+        "fact_pinjaman_final.csv"
+    )
 
     return df
 
 
 df = load_data()
 
-# ============================================================
-# CEK DATA
-# ============================================================
-
-if df is None:
-
-    st.error(
-        "File `fact_pinjaman_final.csv` tidak ditemukan. "
-        "Pastikan file berada dalam folder yang sama dengan `app.py`."
-    )
-
-    uploaded_file = st.file_uploader(
-        "Atau upload file fact_pinjaman_final.csv",
-        type=["csv"]
-    )
-
-    if uploaded_file is not None:
-
-        df = pd.read_csv(uploaded_file)
-
-    else:
-
-        st.stop()
 
 # ============================================================
-# PEMBERSIHAN DATA
+# VALIDASI JUMLAH DATA
 # ============================================================
 
-# Kolom numerik
-numeric_columns = [
-    "plafon",
-    "total_kewajiban",
-    "total_realisasi",
-    "baki_debet",
-    "hari_tunggakan_terlama",
-    "total_nilai_agunan",
-    "kode_kolektibilitas"
-]
-
-for col in numeric_columns:
-
-    if col in df.columns:
-
-        df[col] = pd.to_numeric(
-            df[col],
-            errors="coerce"
-        )
-
-# Tanggal
-if "tanggal_akad" in df.columns:
-
-    df["tanggal_akad"] = pd.to_datetime(
-        df["tanggal_akad"],
-        errors="coerce"
-    )
+total_data_asli = len(df)
 
 
 # ============================================================
-# PORTOFOLIO KREDIT
+# JUDUL
 # ============================================================
 
-# Gunakan seluruh 3.400 data pinjaman
-# Tidak melakukan filter segmen
-# Tidak menghapus pinjaman berdasarkan is_batal
-df = df.copy()
+st.title(
+    "💰 Dashboard Risiko & Collection Kredit Mikro"
+)
 
-# ============================================================
-# DEFINISI NPL
-# ============================================================
+st.markdown(
+    """
+    Dashboard ini digunakan untuk menganalisis kualitas portofolio kredit
+    berdasarkan **NPL, DPD, agunan, tunggakan, dan collection rate**.
+    """
+)
 
-# Kolektibilitas:
-# 1 = Lancar
-# 2 = Dalam Perhatian Khusus
-# 3 = Kurang Lancar
-# 4 = Diragukan
-# 5 = Macet
-
-if "kode_kolektibilitas" in df.columns:
-
-    df["is_npl"] = df[
-        "kode_kolektibilitas"
-    ].isin([3, 4, 5])
-
-else:
-
-    df["is_npl"] = False
-
-# ============================================================
-# STATUS AGUNAN
-# ============================================================
-
-if "total_nilai_agunan" in df.columns:
-
-    df["ada_agunan"] = (
-        df["total_nilai_agunan"]
-        .fillna(0)
-        > 0
-    )
-
-else:
-
-    df["ada_agunan"] = False
-
-# ============================================================
-# NILAI TUNGGAKAN
-# ============================================================
-
-# Karena fact utama tidak mempunyai
-# nominal tunggakan per angsuran,
-# baki debet digunakan sebagai proxy.
-
-if "baki_debet" in df.columns:
-
-    df["nilai_tunggakan"] = (
-        df["baki_debet"]
-        .fillna(0)
-        .clip(lower=0)
-    )
-
-else:
-
-    df["nilai_tunggakan"] = 0
-
-# ============================================================
-# COLLECTION RATE PER PINJAMAN
-# ============================================================
-
-if (
-    "total_realisasi" in df.columns
-    and
-    "total_kewajiban" in df.columns
-):
-
-    df["collection_rate_individu"] = (
-        df["total_realisasi"]
-        /
-        df["total_kewajiban"]
-        .replace(0, pd.NA)
-    )
-
-    df["collection_rate_individu"] = (
-        df["collection_rate_individu"]
-        .fillna(0)
-        .clip(0, 1)
-    )
-
-else:
-
-    df["collection_rate_individu"] = 0
+st.caption(
+    f"Dataset yang digunakan: **{total_data_asli:,} pinjaman**"
+)
 
 
 # ============================================================
@@ -224,119 +106,188 @@ else:
 
 st.sidebar.header("🔎 Filter Dashboard")
 
-# ------------------------------------------------------------
-# Tahun
-# ------------------------------------------------------------
+st.sidebar.markdown(
+    "Gunakan filter untuk melihat analisis berdasarkan periode, "
+    "cabang, dan produk."
+)
 
-if "tanggal_akad" in df.columns:
 
-    years = sorted(
-        df["tanggal_akad"]
-        .dt.year
-        .dropna()
-        .astype(int)
-        .unique()
-    )
+# ============================================================
+# FILTER TAHUN
+# ============================================================
 
-else:
+tahun_data = df["tahun"]
 
-    years = []
+tahun_tersedia = sorted(
+    tahun_data.dropna().unique().tolist()
+)
+
+tahun_tersedia = [
+    int(x)
+    for x in tahun_tersedia
+]
+
+# Tambahkan kategori untuk 57 data yang tidak memiliki tahun
+tahun_options = [
+    str(x)
+    for x in tahun_tersedia
+]
+
+tahun_options.append(
+    "Tahun Tidak Tersedia"
+)
+
 
 selected_year = st.sidebar.multiselect(
     "Tahun Akad",
-    options=years,
-    default=years
+    options=tahun_options,
+    default=tahun_options
 )
 
-# ------------------------------------------------------------
-# Cabang
-# ------------------------------------------------------------
 
-branches = sorted(
+# ============================================================
+# FILTER CABANG
+# ============================================================
+
+cabang_options = sorted(
     df["nama_cabang"]
     .dropna()
     .unique()
+    .tolist()
 )
 
 selected_branch = st.sidebar.multiselect(
     "Cabang",
-    options=branches,
-    default=branches
+    options=cabang_options,
+    default=cabang_options
 )
 
-# ------------------------------------------------------------
-# Produk
-# ------------------------------------------------------------
 
-products = sorted(
+# ============================================================
+# FILTER PRODUK
+# ============================================================
+
+produk_options = sorted(
     df["nama_produk"]
     .dropna()
     .unique()
+    .tolist()
 )
 
 selected_product = st.sidebar.multiselect(
     "Produk Kredit",
-    options=products,
-    default=products
+    options=produk_options,
+    default=produk_options
 )
 
-# ------------------------------------------------------------
-# Agunan
-# ------------------------------------------------------------
-
-selected_collateral = st.sidebar.multiselect(
-    "Status Agunan",
-    options=[
-        "Dengan Agunan",
-        "Tanpa Agunan"
-    ],
-    default=[
-        "Dengan Agunan",
-        "Tanpa Agunan"
-    ]
-)
 
 # ============================================================
-# APPLY FILTER
+# FILTER STATUS AGUNAN
+# ============================================================
+
+# Tidak mengubah data asli.
+# Hanya membuat kategori untuk kebutuhan analisis.
+
+status_agunan = pd.Series(
+    "Tanpa Agunan",
+    index=df.index
+)
+
+status_agunan[
+    df["total_nilai_agunan"].fillna(0) > 0
+] = "Dengan Agunan"
+
+df["status_agunan_dashboard"] = status_agunan
+
+
+agunan_options = [
+    "Dengan Agunan",
+    "Tanpa Agunan"
+]
+
+selected_agunan = st.sidebar.multiselect(
+    "Status Agunan",
+    options=agunan_options,
+    default=agunan_options
+)
+
+
+# ============================================================
+# FILTER DATA
 # ============================================================
 
 filtered_df = df.copy()
 
-if years:
 
-    filtered_df = filtered_df[
-        filtered_df["tanggal_akad"]
-        .dt.year
-        .isin(selected_year)
-    ]
+# ------------------------------------------------------------
+# FILTER TAHUN
+# ------------------------------------------------------------
+
+mask_tahun = pd.Series(
+    False,
+    index=df.index
+)
+
+for tahun in selected_year:
+
+    if tahun == "Tahun Tidak Tersedia":
+
+        mask_tahun = (
+            mask_tahun
+            |
+            df["tahun"].isna()
+        )
+
+    else:
+
+        mask_tahun = (
+            mask_tahun
+            |
+            (
+                df["tahun"]
+                == int(tahun)
+            )
+        )
+
+
+filtered_df = filtered_df[
+    mask_tahun
+]
+
+
+# ------------------------------------------------------------
+# FILTER CABANG
+# ------------------------------------------------------------
 
 filtered_df = filtered_df[
     filtered_df["nama_cabang"]
     .isin(selected_branch)
 ]
 
+
+# ------------------------------------------------------------
+# FILTER PRODUK
+# ------------------------------------------------------------
+
 filtered_df = filtered_df[
     filtered_df["nama_produk"]
     .isin(selected_product)
 ]
 
-collateral_map = {
-    "Dengan Agunan": True,
-    "Tanpa Agunan": False
-}
 
-selected_collateral_values = [
-    collateral_map[x]
-    for x in selected_collateral
-]
+# ------------------------------------------------------------
+# FILTER AGUNAN
+# ------------------------------------------------------------
 
 filtered_df = filtered_df[
-    filtered_df["ada_agunan"]
-    .isin(selected_collateral_values)
+    filtered_df[
+        "status_agunan_dashboard"
+    ].isin(selected_agunan)
 ]
 
+
 # ============================================================
-# CEK FILTER
+# CEK DATA HASIL FILTER
 # ============================================================
 
 if filtered_df.empty:
@@ -347,11 +298,26 @@ if filtered_df.empty:
 
     st.stop()
 
+
+# ============================================================
+# DEFINISI NPL
+# ============================================================
+
+filtered_df["is_npl_dashboard"] = (
+    filtered_df[
+        "kode_kolektibilitas"
+    ].isin([3, 4, 5])
+)
+
+
 # ============================================================
 # FUNGSI FORMAT
 # ============================================================
 
 def format_rupiah(value):
+
+    if pd.isna(value):
+        value = 0
 
     return (
         "Rp "
@@ -362,42 +328,47 @@ def format_rupiah(value):
 
 def format_percent(value):
 
+    if pd.isna(value):
+        value = 0
+
     return f"{value * 100:.2f}%"
 
 
 # ============================================================
-# PERHITUNGAN KPI
+# KPI PORTOFOLIO
 # ============================================================
 
 total_pinjaman = len(
     filtered_df
 )
 
+
 total_plafon = filtered_df[
     "plafon"
 ].sum()
 
-total_baki_debet = filtered_df[
-    "baki_debet"
-].sum()
 
 npl_rate = filtered_df[
-    "is_npl"
+    "is_npl_dashboard"
 ].mean()
+
 
 avg_dpd = filtered_df[
     "hari_tunggakan_terlama"
 ].mean()
 
+
 total_realisasi = filtered_df[
     "total_realisasi"
 ].sum()
+
 
 total_kewajiban = filtered_df[
     "total_kewajiban"
 ].sum()
 
-if total_kewajiban > 0:
+
+if total_kewajiban != 0:
 
     collection_rate = (
         total_realisasi
@@ -409,13 +380,20 @@ else:
 
     collection_rate = 0
 
+
 # ============================================================
-# KPI
+# RINGKASAN PORTOFOLIO
 # ============================================================
 
-st.subheader("📌 Ringkasan Portofolio")
+st.divider()
+
+st.header(
+    "📌 Ringkasan Portofolio"
+)
+
 
 col1, col2, col3, col4, col5 = st.columns(5)
+
 
 with col1:
 
@@ -424,19 +402,26 @@ with col1:
         f"{total_pinjaman:,}"
     )
 
+
 with col2:
 
     st.metric(
         "Total Plafon",
-        format_rupiah(total_plafon)
+        format_rupiah(
+            total_plafon
+        )
     )
+
 
 with col3:
 
     st.metric(
         "NPL",
-        format_percent(npl_rate)
+        format_percent(
+            npl_rate
+        )
     )
+
 
 with col4:
 
@@ -445,44 +430,66 @@ with col4:
         f"{avg_dpd:.1f} hari"
     )
 
+
 with col5:
 
     st.metric(
         "Collection Rate",
-        format_percent(collection_rate)
+        format_percent(
+            collection_rate
+        )
     )
 
-st.divider()
+
+# ============================================================
+# INFORMASI DATA
+# ============================================================
+
+st.info(
+    f"""
+    **Data yang sedang dianalisis: {len(filtered_df):,} pinjaman.**
+    
+    Total dataset asli adalah **{total_data_asli:,} pinjaman**.
+    Data dengan tahun akad yang tidak tersedia tetap dipertahankan
+    dan masuk dalam kategori **Tahun Tidak Tersedia**.
+    """
+)
+
 
 # ============================================================
 # PERTANYAAN 1
-# NPL
+# NPL PORTOFOLIO
 # ============================================================
+
+st.divider()
 
 st.header(
     "1️⃣ NPL Portofolio dan Cabang dengan NPL Tertinggi"
 )
 
-# ------------------------------------------------------------
-# NPL keseluruhan
-# ------------------------------------------------------------
 
 st.markdown(
     f"""
-    **NPL seluruh portofolio kredit mikro adalah
-    {format_percent(npl_rate)}.**
+    Persentase **Non-Performing Loan (NPL)** pada portofolio
+    yang sedang ditampilkan adalah **{format_percent(npl_rate)}**.
+    
+    NPL dihitung berdasarkan pinjaman dengan kolektibilitas
+    **3 (Kurang Lancar), 4 (Diragukan), dan 5 (Macet)**.
     """
 )
 
-# ------------------------------------------------------------
+
+# ============================================================
 # NPL CABANG
-# ------------------------------------------------------------
+# ============================================================
 
 branch_npl = (
 
     filtered_df
 
-    .groupby("nama_cabang")
+    .groupby(
+        "nama_cabang"
+    )
 
     .agg(
 
@@ -492,7 +499,7 @@ branch_npl = (
         ),
 
         jumlah_npl=(
-            "is_npl",
+            "is_npl_dashboard",
             "sum"
         ),
 
@@ -504,61 +511,65 @@ branch_npl = (
     )
 
     .reset_index()
-
 )
 
-branch_npl["npl"] = (
 
+branch_npl["npl_rate"] = (
     branch_npl["jumlah_npl"]
     /
     branch_npl["jumlah_pinjaman"]
-
 )
+
 
 branch_npl["npl_persen"] = (
-    branch_npl["npl"] * 100
+    branch_npl["npl_rate"]
+    * 100
 )
 
-# ------------------------------------------------------------
-# Cabang tertinggi
-# ------------------------------------------------------------
 
-worst_branch = (
-    branch_npl
-    .sort_values(
-        "npl",
-        ascending=False
-    )
-    .iloc[0]
+branch_npl = branch_npl.sort_values(
+    "npl_rate",
+    ascending=False
 )
 
-c1, c2 = st.columns(2)
 
-with c1:
+# ============================================================
+# CABANG NPL TERTINGGI
+# ============================================================
+
+worst_branch_npl = (
+    branch_npl.iloc[0]
+)
+
+
+col1, col2 = st.columns(2)
+
+
+with col1:
 
     st.metric(
-        "Cabang NPL Tertinggi",
-        worst_branch["nama_cabang"]
+        "Cabang dengan NPL Tertinggi",
+        worst_branch_npl[
+            "nama_cabang"
+        ]
     )
 
-with c2:
+
+with col2:
 
     st.metric(
         "NPL Tertinggi",
-        f"{worst_branch['npl'] * 100:.2f}%"
+        f"{worst_branch_npl['npl_rate'] * 100:.2f}%"
     )
 
-# ------------------------------------------------------------
-# Grafik
-# ------------------------------------------------------------
+
+# ============================================================
+# GRAFIK NPL CABANG
+# ============================================================
 
 fig_npl = px.bar(
 
-    branch_npl
-    .sort_values(
-        "npl_persen",
-        ascending=False
-    ),
+    branch_npl,
 
     x="nama_cabang",
 
@@ -567,47 +578,62 @@ fig_npl = px.bar(
     text="npl_persen",
 
     labels={
-        "nama_cabang": "Cabang",
-        "npl_persen": "NPL (%)"
+        "nama_cabang":
+            "Cabang",
+
+        "npl_persen":
+            "NPL (%)"
     },
 
     title="NPL Kredit Mikro Berdasarkan Cabang"
 
 )
 
+
 fig_npl.update_traces(
     texttemplate="%{text:.2f}%",
     textposition="outside"
 )
 
+
 fig_npl.update_layout(
     yaxis_title="NPL (%)",
-    xaxis_title=""
+    xaxis_title="",
+    uniformtext_minsize=8,
+    uniformtext_mode="hide"
 )
+
 
 st.plotly_chart(
     fig_npl,
     use_container_width=True
 )
 
-# ------------------------------------------------------------
-# Tabel
-# ------------------------------------------------------------
+
+# ============================================================
+# TABEL NPL
+# ============================================================
 
 st.dataframe(
 
-    branch_npl
-    .sort_values(
-        "npl",
-        ascending=False
-    )
-    .rename(
+    branch_npl.rename(
         columns={
-            "nama_cabang": "Cabang",
-            "jumlah_pinjaman": "Jumlah Pinjaman",
-            "jumlah_npl": "Jumlah NPL",
-            "npl_persen": "NPL (%)",
-            "baki_debet": "Baki Debet"
+
+            "nama_cabang":
+                "Cabang",
+
+            "jumlah_pinjaman":
+                "Jumlah Pinjaman",
+
+            "jumlah_npl":
+                "Jumlah NPL",
+
+            "npl_persen":
+                "NPL (%)",
+
+            "baki_debet":
+                "Baki Debet"
+
         }
     )[[
         "Cabang",
@@ -623,35 +649,43 @@ st.dataframe(
 
 )
 
+
 # ============================================================
 # PERTANYAAN 2
 # DPD
 # ============================================================
 
+st.divider()
+
 st.header(
     "2️⃣ Rata-rata DPD dan Produk dengan Keterlambatan Tertinggi"
 )
+
 
 avg_dpd = filtered_df[
     "hari_tunggakan_terlama"
 ].mean()
 
+
 st.markdown(
     f"""
-    **Rata-rata hari keterlambatan pembayaran (DPD)
-    seluruh portofolio adalah {avg_dpd:.1f} hari.**
+    Rata-rata hari keterlambatan pembayaran (**DPD**) 
+    pada portofolio adalah **{avg_dpd:.1f} hari**.
     """
 )
 
-# ------------------------------------------------------------
-# DPD PRODUK
-# ------------------------------------------------------------
+
+# ============================================================
+# DPD PER PRODUK
+# ============================================================
 
 product_dpd = (
 
     filtered_df
 
-    .groupby("nama_produk")
+    .groupby(
+        "nama_produk"
+    )
 
     .agg(
 
@@ -669,24 +703,43 @@ product_dpd = (
 
     .reset_index()
 
+    .sort_values(
+        "rata_rata_dpd",
+        ascending=False
+    )
+
 )
 
-product_dpd = product_dpd.sort_values(
-    "rata_rata_dpd",
-    ascending=False
+
+worst_product_dpd = (
+    product_dpd.iloc[0]
 )
 
-worst_product = product_dpd.iloc[0]
 
-st.metric(
-    "Produk dengan Rata-rata DPD Tertinggi",
-    worst_product["nama_produk"],
-    f"{worst_product['rata_rata_dpd']:.1f} hari"
-)
+col1, col2 = st.columns(2)
 
-# ------------------------------------------------------------
-# Grafik DPD
-# ------------------------------------------------------------
+
+with col1:
+
+    st.metric(
+        "Produk dengan DPD Tertinggi",
+        worst_product_dpd[
+            "nama_produk"
+        ]
+    )
+
+
+with col2:
+
+    st.metric(
+        "Rata-rata DPD",
+        f"{worst_product_dpd['rata_rata_dpd']:.1f} hari"
+    )
+
+
+# ============================================================
+# GRAFIK DPD
+# ============================================================
 
 fig_dpd = px.bar(
 
@@ -699,43 +752,58 @@ fig_dpd = px.bar(
     text="rata_rata_dpd",
 
     labels={
-        "nama_produk": "Produk",
+
+        "nama_produk":
+            "Produk Kredit",
+
         "rata_rata_dpd":
             "Rata-rata DPD (Hari)"
+
     },
 
     title="Rata-rata DPD Berdasarkan Produk"
 
 )
 
+
 fig_dpd.update_traces(
     texttemplate="%{text:.1f}",
     textposition="outside"
 )
 
+
 fig_dpd.update_layout(
-    xaxis_tickangle=-45
+    xaxis_tickangle=-45,
+    xaxis_title="",
+    yaxis_title="Hari"
 )
+
 
 st.plotly_chart(
     fig_dpd,
     use_container_width=True
 )
 
+
 # ============================================================
 # PERTANYAAN 3
 # AGUNAN
 # ============================================================
 
+st.divider()
+
 st.header(
     "3️⃣ Perbandingan NPL dengan Agunan dan Tanpa Agunan"
 )
+
 
 collateral_npl = (
 
     filtered_df
 
-    .groupby("ada_agunan")
+    .groupby(
+        "status_agunan_dashboard"
+    )
 
     .agg(
 
@@ -745,7 +813,7 @@ collateral_npl = (
         ),
 
         jumlah_npl=(
-            "is_npl",
+            "is_npl_dashboard",
             "sum"
         )
 
@@ -755,127 +823,175 @@ collateral_npl = (
 
 )
 
-collateral_npl["npl"] = (
 
-    collateral_npl["jumlah_npl"]
+collateral_npl["npl_rate"] = (
+
+    collateral_npl[
+        "jumlah_npl"
+    ]
     /
-    collateral_npl["jumlah_pinjaman"]
-
-)
-
-collateral_npl["status_agunan"] = (
-    collateral_npl["ada_agunan"]
-    .map({
-        True: "Dengan Agunan",
-        False: "Tanpa Agunan"
-    })
-)
-
-with_collateral = (
     collateral_npl[
-        collateral_npl["ada_agunan"] == True
-    ]["npl"]
+        "jumlah_pinjaman"
+    ]
+
 )
 
-without_collateral = (
-    collateral_npl[
-        collateral_npl["ada_agunan"] == False
-    ]["npl"]
-)
-
-with_collateral = (
-    with_collateral.iloc[0]
-    if len(with_collateral) > 0
-    else 0
-)
-
-without_collateral = (
-    without_collateral.iloc[0]
-    if len(without_collateral) > 0
-    else 0
-)
-
-difference_npl = abs(
-    with_collateral
-    -
-    without_collateral
-)
-
-# ------------------------------------------------------------
-# KPI AGUNAN
-# ------------------------------------------------------------
-
-c1, c2, c3 = st.columns(3)
-
-with c1:
-
-    st.metric(
-        "NPL Dengan Agunan",
-        format_percent(with_collateral)
-    )
-
-with c2:
-
-    st.metric(
-        "NPL Tanpa Agunan",
-        format_percent(without_collateral)
-    )
-
-with c3:
-
-    st.metric(
-        "Selisih NPL",
-        f"{difference_npl * 100:.2f} pp"
-    )
-
-# ------------------------------------------------------------
-# Grafik
-# ------------------------------------------------------------
 
 collateral_npl["npl_persen"] = (
-    collateral_npl["npl"]
+    collateral_npl[
+        "npl_rate"
+    ]
     * 100
 )
 
-fig_collateral = px.bar(
+
+# ============================================================
+# NILAI NPL AGUNAN
+# ============================================================
+
+npl_dengan_agunan = collateral_npl.loc[
+    collateral_npl[
+        "status_agunan_dashboard"
+    ] == "Dengan Agunan",
+    "npl_rate"
+]
+
+npl_tanpa_agunan = collateral_npl.loc[
+    collateral_npl[
+        "status_agunan_dashboard"
+    ] == "Tanpa Agunan",
+    "npl_rate"
+]
+
+
+if len(npl_dengan_agunan) > 0:
+
+    npl_dengan_agunan = (
+        npl_dengan_agunan.iloc[0]
+    )
+
+else:
+
+    npl_dengan_agunan = 0
+
+
+if len(npl_tanpa_agunan) > 0:
+
+    npl_tanpa_agunan = (
+        npl_tanpa_agunan.iloc[0]
+    )
+
+else:
+
+    npl_tanpa_agunan = 0
+
+
+selisih_npl = abs(
+    npl_dengan_agunan
+    -
+    npl_tanpa_agunan
+)
+
+
+# ============================================================
+# KPI AGUNAN
+# ============================================================
+
+col1, col2, col3 = st.columns(3)
+
+
+with col1:
+
+    st.metric(
+        "NPL Dengan Agunan",
+        format_percent(
+            npl_dengan_agunan
+        )
+    )
+
+
+with col2:
+
+    st.metric(
+        "NPL Tanpa Agunan",
+        format_percent(
+            npl_tanpa_agunan
+        )
+    )
+
+
+with col3:
+
+    st.metric(
+        "Selisih NPL",
+        f"{selisih_npl * 100:.2f} pp"
+    )
+
+
+# ============================================================
+# GRAFIK AGUNAN
+# ============================================================
+
+fig_agunan = px.bar(
 
     collateral_npl,
 
-    x="status_agunan",
+    x="status_agunan_dashboard",
 
     y="npl_persen",
 
     text="npl_persen",
 
     labels={
-        "status_agunan":
+
+        "status_agunan_dashboard":
             "Status Agunan",
+
         "npl_persen":
             "NPL (%)"
+
     },
 
     title="NPL Berdasarkan Status Agunan"
 
 )
 
-fig_collateral.update_traces(
+
+fig_agunan.update_traces(
     texttemplate="%{text:.2f}%",
     textposition="outside"
 )
 
+
+fig_agunan.update_layout(
+    xaxis_title="",
+    yaxis_title="NPL (%)"
+)
+
+
 st.plotly_chart(
-    fig_collateral,
+    fig_agunan,
     use_container_width=True
 )
 
+
 # ============================================================
 # PERTANYAAN 4
-# TUNGGAKAN PETUGAS
+# TUNGGAKAN
 # ============================================================
+
+st.divider()
 
 st.header(
     "4️⃣ Petugas Kredit atau Segmen Usaha dengan Tunggakan Terbesar"
 )
+
+
+st.caption(
+    "Nilai tunggakan ditampilkan menggunakan **baki debet** "
+    "sebagai indikator outstanding kredit."
+)
+
 
 tab_petugas, tab_usaha = st.tabs(
     [
@@ -883,6 +999,7 @@ tab_petugas, tab_usaha = st.tabs(
         "🏪 Jenis Usaha"
     ]
 )
+
 
 # ============================================================
 # PETUGAS
@@ -894,12 +1011,14 @@ with tab_petugas:
 
         filtered_df
 
-        .groupby("nama_petugas")
+        .groupby(
+            "nama_petugas"
+        )
 
         .agg(
 
             total_tunggakan=(
-                "nilai_tunggakan",
+                "baki_debet",
                 "sum"
             ),
 
@@ -909,7 +1028,7 @@ with tab_petugas:
             ),
 
             jumlah_npl=(
-                "is_npl",
+                "is_npl_dashboard",
                 "sum"
             )
 
@@ -924,16 +1043,38 @@ with tab_petugas:
 
     )
 
-    # Top petugas
-    top_officer = officer.iloc[0]
 
-    st.metric(
-        "Petugas dengan Tunggakan Terbesar",
-        top_officer["nama_petugas"],
-        format_rupiah(
-            top_officer["total_tunggakan"]
-        )
+    top_officer = (
+        officer.iloc[0]
     )
+
+
+    col1, col2 = st.columns(2)
+
+
+    with col1:
+
+        st.metric(
+            "Petugas dengan Tunggakan Terbesar",
+            top_officer[
+                "nama_petugas"
+            ]
+        )
+
+
+    with col2:
+
+        st.metric(
+            "Total Baki Debet",
+            format_rupiah(
+                top_officer[
+                    "total_tunggakan"
+                ]
+            )
+        )
+
+
+    # Grafik
 
     fig_officer = px.bar(
 
@@ -946,42 +1087,56 @@ with tab_petugas:
         text="total_tunggakan",
 
         labels={
+
             "nama_petugas":
                 "Petugas Kredit",
+
             "total_tunggakan":
-                "Total Tunggakan"
+                "Baki Debet"
+
         },
 
-        title="15 Petugas dengan Total Tunggakan Terbesar"
+        title="15 Petugas dengan Baki Debet Terbesar"
 
     )
+
 
     fig_officer.update_traces(
         texttemplate="Rp %{text:,.0f}",
         textposition="outside"
     )
 
+
     fig_officer.update_layout(
-        xaxis_tickangle=-45
+        xaxis_tickangle=-45,
+        xaxis_title="",
+        yaxis_title="Baki Debet"
     )
+
 
     st.plotly_chart(
         fig_officer,
         use_container_width=True
     )
 
+
     st.dataframe(
 
         officer.rename(
             columns={
+
                 "nama_petugas":
                     "Petugas",
+
                 "total_tunggakan":
-                    "Total Tunggakan",
+                    "Baki Debet",
+
                 "jumlah_pinjaman":
                     "Jumlah Pinjaman",
+
                 "jumlah_npl":
                     "Jumlah NPL"
+
             }
         ),
 
@@ -990,6 +1145,7 @@ with tab_petugas:
         hide_index=True
 
     )
+
 
 # ============================================================
 # JENIS USAHA
@@ -1001,12 +1157,15 @@ with tab_usaha:
 
         filtered_df
 
-        .groupby("jenis_usaha")
+        .groupby(
+            "jenis_usaha",
+            dropna=False
+        )
 
         .agg(
 
             total_tunggakan=(
-                "nilai_tunggakan",
+                "baki_debet",
                 "sum"
             ),
 
@@ -1016,7 +1175,7 @@ with tab_usaha:
             ),
 
             jumlah_npl=(
-                "is_npl",
+                "is_npl_dashboard",
                 "sum"
             )
 
@@ -1031,15 +1190,40 @@ with tab_usaha:
 
     )
 
-    top_business = business.iloc[0]
 
-    st.metric(
-        "Jenis Usaha dengan Tunggakan Terbesar",
-        top_business["jenis_usaha"],
-        format_rupiah(
-            top_business["total_tunggakan"]
-        )
+    top_business = (
+        business.iloc[0]
     )
+
+
+    col1, col2 = st.columns(2)
+
+
+    with col1:
+
+        st.metric(
+            "Jenis Usaha dengan Tunggakan Terbesar",
+            str(
+                top_business[
+                    "jenis_usaha"
+                ]
+            )
+        )
+
+
+    with col2:
+
+        st.metric(
+            "Total Baki Debet",
+            format_rupiah(
+                top_business[
+                    "total_tunggakan"
+                ]
+            )
+        )
+
+
+    # Grafik
 
     fig_business = px.bar(
 
@@ -1052,42 +1236,56 @@ with tab_usaha:
         text="total_tunggakan",
 
         labels={
+
             "jenis_usaha":
                 "Jenis Usaha",
+
             "total_tunggakan":
-                "Total Tunggakan"
+                "Baki Debet"
+
         },
 
-        title="Total Tunggakan Berdasarkan Jenis Usaha"
+        title="Baki Debet Berdasarkan Jenis Usaha"
 
     )
+
 
     fig_business.update_traces(
         texttemplate="Rp %{text:,.0f}",
         textposition="outside"
     )
 
+
     fig_business.update_layout(
-        xaxis_tickangle=-45
+        xaxis_tickangle=-45,
+        xaxis_title="",
+        yaxis_title="Baki Debet"
     )
+
 
     st.plotly_chart(
         fig_business,
         use_container_width=True
     )
 
+
     st.dataframe(
 
         business.rename(
             columns={
+
                 "jenis_usaha":
                     "Jenis Usaha",
+
                 "total_tunggakan":
-                    "Total Tunggakan",
+                    "Baki Debet",
+
                 "jumlah_pinjaman":
                     "Jumlah Pinjaman",
+
                 "jumlah_npl":
                     "Jumlah NPL"
+
             }
         ),
 
@@ -1097,28 +1295,38 @@ with tab_usaha:
 
     )
 
+
 # ============================================================
 # PERTANYAAN 5
 # COLLECTION RATE
 # ============================================================
 
+st.divider()
+
 st.header(
     "5️⃣ Collection Rate Kredit Mikro"
 )
 
-# ------------------------------------------------------------
+
+# ============================================================
 # COLLECTION RATE KESELURUHAN
-# ------------------------------------------------------------
+# ============================================================
 
-total_realisasi = filtered_df[
-    "total_realisasi"
-].sum()
+total_realisasi = (
+    filtered_df[
+        "total_realisasi"
+    ].sum()
+)
 
-total_kewajiban = filtered_df[
-    "total_kewajiban"
-].sum()
 
-if total_kewajiban > 0:
+total_kewajiban = (
+    filtered_df[
+        "total_kewajiban"
+    ].sum()
+)
+
+
+if total_kewajiban != 0:
 
     collection_rate = (
         total_realisasi
@@ -1130,20 +1338,26 @@ else:
 
     collection_rate = 0
 
-st.metric(
-    "Collection Rate Keseluruhan",
-    format_percent(collection_rate)
+
+st.markdown(
+    f"""
+    Tingkat **collection rate** pada portofolio yang sedang
+    dianalisis adalah **{format_percent(collection_rate)}**.
+    """
 )
 
-# ------------------------------------------------------------
+
+# ============================================================
 # COLLECTION RATE CABANG
-# ------------------------------------------------------------
+# ============================================================
 
 branch_collection = (
 
     filtered_df
 
-    .groupby("nama_cabang")
+    .groupby(
+        "nama_cabang"
+    )
 
     .agg(
 
@@ -1168,6 +1382,7 @@ branch_collection = (
 
 )
 
+
 branch_collection["collection_rate"] = (
 
     branch_collection[
@@ -1176,41 +1391,57 @@ branch_collection["collection_rate"] = (
     /
     branch_collection[
         "total_kewajiban"
-    ].replace(0, pd.NA)
+    ]
 
-).fillna(0)
-
-branch_collection = branch_collection.sort_values(
-    "collection_rate"
 )
 
-# ------------------------------------------------------------
-# Cabang terendah
-# ------------------------------------------------------------
+
+branch_collection = (
+    branch_collection
+    .sort_values(
+        "collection_rate",
+        ascending=True
+    )
+)
+
+
+# ============================================================
+# CABANG COLLECTION RATE TERENDAH
+# ============================================================
 
 worst_collection = (
     branch_collection.iloc[0]
 )
 
-c1, c2 = st.columns(2)
 
-with c1:
+col1, col2 = st.columns(2)
 
-    st.metric(
-        "Collection Rate Terendah",
-        f"{worst_collection['collection_rate'] * 100:.2f}%"
-    )
 
-with c2:
+with col1:
 
     st.metric(
-        "Cabang",
-        worst_collection["nama_cabang"]
+        "Cabang Collection Rate Terendah",
+        worst_collection[
+            "nama_cabang"
+        ]
     )
 
-# ------------------------------------------------------------
-# Grafik
-# ------------------------------------------------------------
+
+with col2:
+
+    st.metric(
+        "Collection Rate",
+        format_percent(
+            worst_collection[
+                "collection_rate"
+            ]
+        )
+    )
+
+
+# ============================================================
+# GRAFIK COLLECTION RATE
+# ============================================================
 
 fig_collection = px.bar(
 
@@ -1223,92 +1454,112 @@ fig_collection = px.bar(
     text="collection_rate",
 
     labels={
+
         "nama_cabang":
             "Cabang",
 
         "collection_rate":
             "Collection Rate"
+
     },
 
     title="Collection Rate Berdasarkan Cabang"
 
 )
 
+
 fig_collection.update_traces(
     texttemplate="%{text:.2%}",
     textposition="outside"
 )
 
+
 fig_collection.update_layout(
-    yaxis_tickformat=".0%"
+    yaxis_tickformat=".0%",
+    xaxis_title="",
+    yaxis_title="Collection Rate"
 )
+
 
 st.plotly_chart(
     fig_collection,
     use_container_width=True
 )
 
+
 # ============================================================
 # DISTRIBUSI KOLEKTIBILITAS
 # ============================================================
 
+st.divider()
+
 st.header(
-    "📊 Distribusi Kolektibilitas Kredit"
+    "📊 Distribusi Kolektibilitas"
 )
 
-if "kolektibilitas" in filtered_df.columns:
 
-    kolektibilitas = (
+kolektibilitas = (
 
-        filtered_df[
+    filtered_df
+
+    .groupby(
+        [
+            "kode_kolektibilitas",
             "kolektibilitas"
-        ]
-
-        .value_counts()
-
-        .reset_index()
-
+        ],
+        dropna=False
     )
 
-    kolektibilitas.columns = [
-        "Kolektibilitas",
-        "Jumlah"
-    ]
+    .size()
 
-    fig_kolektibilitas = px.pie(
-
-        kolektibilitas,
-
-        names="Kolektibilitas",
-
-        values="Jumlah",
-
-        hole=0.45,
-
-        title="Komposisi Kolektibilitas Kredit Mikro"
-
+    .reset_index(
+        name="jumlah"
     )
 
-    st.plotly_chart(
-        fig_kolektibilitas,
-        use_container_width=True
-    )
+)
+
+
+fig_kolektibilitas = px.pie(
+
+    kolektibilitas,
+
+    names="kolektibilitas",
+
+    values="jumlah",
+
+    hole=0.45,
+
+    title="Komposisi Kolektibilitas Kredit"
+
+)
+
+
+st.plotly_chart(
+    fig_kolektibilitas,
+    use_container_width=True
+)
+
 
 # ============================================================
-# DATA DETAIL
+# TABEL DETAIL
 # ============================================================
+
+st.divider()
 
 st.header(
     "📋 Detail Data Kredit"
 )
+
 
 detail_columns = [
 
     "pinjaman_id",
     "nasabah_id",
     "nama_produk",
+    "segmen",
     "nama_cabang",
     "nama_petugas",
+    "tahun",
     "tanggal_akad",
     "plafon",
     "baki_debet",
@@ -1317,15 +1568,20 @@ detail_columns = [
     "kode_kolektibilitas",
     "total_nilai_agunan",
     "jenis_usaha",
-    "is_npl"
+    "total_kewajiban",
+    "total_realisasi"
 
 ]
 
+
 detail_columns = [
+
     col
     for col in detail_columns
     if col in filtered_df.columns
+
 ]
+
 
 st.dataframe(
 
@@ -1339,31 +1595,37 @@ st.dataframe(
 
 )
 
+
 # ============================================================
 # DOWNLOAD
 # ============================================================
 
 st.header(
-    "⬇️ Download Data"
+    "⬇️ Download Data Hasil Filter"
 )
 
-csv_data = filtered_df[
+
+download_data = filtered_df[
     detail_columns
 ].to_csv(
     index=False
-).encode("utf-8")
+).encode(
+    "utf-8"
+)
+
 
 st.download_button(
 
-    label="📥 Download Hasil Filter",
+    label="📥 Download CSV",
 
-    data=csv_data,
+    data=download_data,
 
-    file_name="hasil_analisis_kredit_mikro.csv",
+    file_name="hasil_filter_kredit_mikro.csv",
 
     mime="text/csv"
 
 )
+
 
 # ============================================================
 # CATATAN METODOLOGI
@@ -1371,14 +1633,41 @@ st.download_button(
 
 st.divider()
 
-st.caption(
+st.subheader(
+    "📝 Catatan Metodologi"
+)
+
+st.markdown(
     """
-    **Catatan metodologi:** NPL dihitung sebagai proporsi pinjaman dengan
+    **NPL** dihitung sebagai proporsi pinjaman dengan
     kolektibilitas 3 (Kurang Lancar), 4 (Diragukan), dan 5 (Macet).
-    DPD menggunakan variabel `hari_tunggakan_terlama`.
-    Status dengan agunan ditentukan berdasarkan `total_nilai_agunan > 0`.
-    Collection rate dihitung sebagai `total_realisasi / total_kewajiban`.
-    Karena fact utama tidak memuat rincian nominal tunggakan per angsuran,
-    `baki_debet` digunakan sebagai proxy nilai tunggakan.
+
+    **DPD** menggunakan variabel `hari_tunggakan_terlama`.
+
+    **Status agunan** dibedakan berdasarkan keberadaan nilai
+    pada `total_nilai_agunan`.
+
+    **Collection Rate** dihitung sebagai:
+
+    `Total Realisasi / Total Kewajiban`
+
+    **Tunggakan** pada dashboard direpresentasikan menggunakan
+    `baki_debet` sebagai indikator outstanding kredit.
+
+    Dataset tidak dilakukan proses pembersihan atau penghapusan data.
+    Seluruh **3.400 pinjaman** tetap dipertahankan dalam dataset.
+    Sebanyak data yang tidak memiliki tahun akad tetap dipertahankan
+    dalam kategori **Tahun Tidak Tersedia**.
     """
+)
+
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+st.markdown("---")
+
+st.caption(
+    "Dashboard Risiko & Collection Kredit Mikro | Analisis Portofolio Kredit"
 )
