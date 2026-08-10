@@ -406,7 +406,7 @@ if produk_dipilih and nama_produk is not None:
 # JUDUL
 # ============================================================
 
-st.title("💳 Dashboard Risiko & Collection Kredit Mikro")
+st.title("💳 Dashboard Monitoring Kredit Mikro")
 
 st.caption(
     f"Sumber data: {CSV_PATH.relative_to(BASE_DIR) if CSV_PATH.is_relative_to(BASE_DIR) else CSV_PATH}"
