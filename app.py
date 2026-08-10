@@ -710,9 +710,8 @@ if agunan is not None:
     )
 
     selisih = abs(
-        (npl_agunan - npl_tanpa_agunan)
-        / npl_tanpa_agunan
-    ) * 100
+        npl_agunan - npl_tanpa_agunan
+    )
 
     a, b, c = st.columns(3)
 
