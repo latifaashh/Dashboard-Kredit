@@ -1177,32 +1177,3 @@ st.caption(
     f"Total data awal: {total_data_asli:,} pinjaman | "
     f"Data yang sedang dianalisis: {jumlah_pinjaman:,} pinjaman"
 )
-
-# ============================================================
-# EXPORT FINAL FACT UNTUK STREAMLIT
-# ============================================================
-
-fact_pinjaman_final = dataset_analisis.copy()
-
-print("Jumlah baris:", len(fact_pinjaman_final))
-print(
-    "Jumlah pinjaman unik:",
-    fact_pinjaman_final["pinjaman_id"].nunique()
-)
-
-print(
-    "Total kewajiban:",
-    fact_pinjaman_final["total_kewajiban"].sum()
-)
-
-print(
-    "Total realisasi:",
-    fact_pinjaman_final["total_realisasi"].sum()
-)
-
-fact_pinjaman_final.to_csv(
-    "fact_pinjaman_final.csv",
-    index=False
-)
-
-print("=== FILE BERHASIL DIEKSPOR ===")
