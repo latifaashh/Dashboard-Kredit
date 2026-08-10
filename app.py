@@ -128,33 +128,15 @@ if "tanggal_akad" in df.columns:
         errors="coerce"
     )
 
+
 # ============================================================
-# FILTER PORTOFOLIO
+# PORTOFOLIO KREDIT
 # ============================================================
 
-# Hanya segmen mikro
-if "segmen" in df.columns:
-
-    df = df[
-        df["segmen"]
-        .astype(str)
-        .str.lower()
-        .eq("mikro")
-    ].copy()
-
-# Buang pinjaman batal
-if "is_batal" in df.columns:
-
-    df["is_batal"] = (
-        df["is_batal"]
-        .astype(str)
-        .str.lower()
-        .isin(["true", "1", "yes", "ya"])
-    )
-
-    df = df[
-        df["is_batal"] == False
-    ].copy()
+# Gunakan seluruh 3.400 data pinjaman
+# Tidak melakukan filter segmen
+# Tidak menghapus pinjaman berdasarkan is_batal
+df = df.copy()
 
 # ============================================================
 # DEFINISI NPL
