@@ -9,7 +9,7 @@ from pathlib import Path
 # ============================================================
 
 st.set_page_config(
-    page_title="Dashboard Portofolio Kredit",
+    page_title="Dashboard Monitoring Kredit Mikro",
     page_icon="💳",
     layout="wide"
 )
