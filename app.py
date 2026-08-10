@@ -487,7 +487,7 @@ with k5:
 # ============================================================
 
 st.divider()
-st.header("NPL Berdasarkan Cabang")
+st.header("Persentase Kredit Bermasalah Berdasarkan Cabang")
 
 if nama_cabang is not None:
     branch_npl = (
