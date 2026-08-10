@@ -542,7 +542,19 @@ total_realisasi = (
     else 0
 )
 
-k1, k2, k3 = st.columns(3)
+npl_rate = (
+    df["is_npl"].mean() * 100
+    if len(df) > 0
+    else 0
+)
+
+avg_dpd = (
+    df[tunggakan].mean()
+    if tunggakan and len(df) > 0
+    else np.nan
+)
+
+k1, k2, k3, k4, k5 = st.columns(5)
 
 with k1:
     st.metric(
@@ -561,6 +573,20 @@ with k3:
         "Total Realisasi Pembayaran",
         rupiah(total_realisasi)
     )
+    
+ with k4:
+    st.metric(
+        "NPL",
+        f"{npl_rate:.2f}%"
+    )
+
+with k5:
+    st.metric(
+        "Rata-rata DPD",
+        f"{avg_dpd:.1f} hari"
+        if pd.notna(avg_dpd)
+        else "N/A"
+    )   
     
 # ============================================================
 # NPL PER CABANG
