@@ -109,13 +109,13 @@ def add_dim(
 # ============================================================
 # LOAD DATA
 # ============================================================
-import os
+from pathlib import Path
 import pandas as pd
 
-DATA_PATH = "data"
+BASE_DIR = Path(__file__).resolve().parent
 
 fact = pd.read_csv(
-    os.path.join(DATA_PATH, "fact_pinjaman_final.csv")
+    BASE_DIR / "fact_pinjaman_final.csv"
 )
 
 fact = pd.read_csv(
