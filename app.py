@@ -60,12 +60,7 @@ st.markdown(
 @st.cache_data
 def load_data():
 
-    file_path = Path("fact_pinjaman_final.csv")
-
-    if not file_path.exists():
-        return None
-
-    df = pd.read_csv(file_path)
+    df = pd.read_csv("fact_pinjaman_final.csv")
 
     return df
 
