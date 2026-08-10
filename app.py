@@ -536,82 +536,48 @@ st.caption(
 st.header("Ringkasan Portofolio")
 
 jumlah_pinjaman = (
-    df[pid].nunique()
+    fact[pid].nunique()
     if pid
-    else len(df)
-)
-
-total_plafon = (
-    df[plafon].sum()
-    if plafon
-    else np.nan
+    else len(fact)
 )
 
 total_kewajiban = (
-    df[kewajiban].sum()
+    fact[kewajiban].sum()
     if kewajiban
-    else np.nan
+    else 0
 )
 
 total_realisasi = (
-    df[realisasi].sum()
+    fact[realisasi].sum()
     if realisasi
-    else np.nan
+    else 0
 )
+# ============================================================
+# KPI UTAMA PORTOFOLIO
+# ============================================================
 
-npl_rate = (
-    df["is_npl"].mean()
-)
+st.header("Ringkasan Portofolio")
 
-collection_rate = (
-    total_realisasi / total_kewajiban
-    if (
-        kewajiban
-        and realisasi
-        and total_kewajiban != 0
+k1, k2, k3 = st.columns(3)
+
+with k1:
+    st.metric(
+        "Jumlah Pinjaman",
+        f"{jumlah_pinjaman:,}".replace(",", ".")
     )
-    else np.nan
-)
 
-avg_dpd = (
-    df[tunggakan].mean()
-    if tunggakan
-    else np.nan
-)
+with k2:
+    st.metric(
+        "Total Kewajiban",
+        rupiah(total_kewajiban)
+    )
 
-
-k1, k2, k3, k4, k5 = st.columns(5)
-
-k1.metric(
-    "Jumlah Pinjaman",
-    f"{jumlah_pinjaman:,}".replace(",", ".")
-)
-
-k2.metric(
-    "Total Plafon",
-    rupiah(total_plafon)
-)
-
-k3.metric(
-    "NPL",
-    f"{npl_rate * 100:.2f}%"
-)
-
-k4.metric(
-    "Rata-rata DPD",
-    f"{avg_dpd:.1f} hari"
-    if pd.notna(avg_dpd)
-    else "N/A"
-)
-
-k5.metric(
-    "Collection Rate",
-    f"{collection_rate * 100:.2f}%"
-    if pd.notna(collection_rate)
-    else "N/A"
-)
-
-
+with k3:
+    st.metric(
+        "Total Realisasi Pembayaran",
+        rupiah(total_realisasi)
+    )
+    
 # ============================================================
 # NPL PER CABANG
 # ============================================================
