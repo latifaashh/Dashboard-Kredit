@@ -14,19 +14,6 @@ st.set_page_config(
     layout="wide"
 )
 
-
-# ============================================================
-# JUDUL
-# ============================================================
-
-st.title("💳 Dashboard Portofolio Kredit")
-
-st.caption(
-    "Dashboard analitik portofolio kredit berdasarkan NPL, DPD, "
-    "agunan, tunggakan, dan collection rate."
-)
-
-
 # ============================================================
 # HELPER
 # ============================================================
