@@ -522,8 +522,6 @@ st.title("💳 Dashboard Risiko & Collection Kredit Mikro")
 # RINGKASAN PORTOFOLIO
 # ============================================================
 
-st.header("Ringkasan Portofolio")
-
 jumlah_pinjaman = (
     df[pid].nunique()
     if pid
@@ -595,12 +593,6 @@ with k5:
 st.divider()
 
 st.header("NPL Berdasarkan Cabang")
-
-st.caption(
-    "Menunjukkan cabang dengan tingkat kredit bermasalah "
-    "tertinggi."
-)
-
 
 branch_npl = (
 
@@ -691,12 +683,6 @@ st.divider()
 
 st.header("Rata-rata DPD Berdasarkan Produk")
 
-st.caption(
-    "Menunjukkan produk kredit dengan rata-rata keterlambatan "
-    "pembayaran tertinggi."
-)
-
-
 product_dpd = (
 
     df.groupby("nama_produk")
@@ -776,12 +762,6 @@ st.plotly_chart(
 st.divider()
 
 st.header("NPL Berdasarkan Status Agunan")
-
-st.caption(
-    "Perbandingan tingkat NPL antara pinjaman dengan agunan "
-    "dan tanpa agunan."
-)
-
 
 df["status_agunan"] = np.where(
     df[agunan] > 0,
@@ -914,11 +894,6 @@ st.plotly_chart(
 st.divider()
 
 st.header("Tunggakan Kredit")
-
-st.caption(
-    "Menunjukkan petugas kredit dan jenis usaha dengan "
-    "total tunggakan terbesar."
-)
 
 
 left, right = st.columns(2)
