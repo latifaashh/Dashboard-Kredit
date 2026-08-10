@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-
+from pathlib import Path
 
 # ============================================================
 # KONFIGURASI
@@ -19,7 +19,6 @@ st.set_page_config(
 # ============================================================
 
 def rupiah(x):
-
     if pd.isna(x):
         return "N/A"
 
@@ -27,86 +26,51 @@ def rupiah(x):
 
     if abs(x) >= 1e12:
         return f"Rp{x / 1e12:.2f} T"
-
     if abs(x) >= 1e9:
         return f"Rp{x / 1e9:.2f} M"
-
     if abs(x) >= 1e6:
         return f"Rp{x / 1e6:.2f} Jt"
 
     return f"Rp{x:,.0f}"
 
 
-def col(df, names):
+def find_col(df, candidates):
+    """Mencari nama kolom yang tersedia."""
+    # Prioritas exact match
+    lower_map = {}
+    for c in df.columns:
+        lower_map.setdefault(str(c).lower().strip(), c)
 
-    mapping = {
-        str(x).lower().strip(): x
-        for x in df.columns
-    }
+    for name in candidates:
+        key = str(name).lower().strip()
+        if key in lower_map:
+            return lower_map[key]
 
-    # Cari nama yang persis
-    for name in names:
-
-        if name.lower() in mapping:
-            return mapping[name.lower()]
-
-    # Cari nama yang mengandung
-    for name in names:
-
-        for x in df.columns:
-
-            if name.lower() in str(x).lower():
-                return x
+    # Jika tidak ada exact match, cari nama yang mengandung kandidat
+    for name in candidates:
+        key = str(name).lower().strip()
+        for c in df.columns:
+            if key in str(c).lower().strip():
+                return c
 
     return None
 
 
-def add_dim(
-    fact,
-    dim,
-    key,
-    attributes
-):
+def safe_numeric(series):
+    return pd.to_numeric(series, errors="coerce")
 
-    if dim is None:
-        return fact
 
-    if key not in fact.columns:
-        return fact
+def unique_values(df, column):
+    if column is None or column not in df.columns:
+        return []
+    return sorted(
+        df[column]
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist()
+    )
 
-    if key not in dim.columns:
-        return fact
-
-    d = dim.drop_duplicates(
-        subset=[key]
-    ).copy()
-
-    keep = [
-        key
-    ]
-
-    for attribute in attributes:
-
-        if (
-            attribute in d.columns
-            and attribute not in fact.columns
-        ):
-
-            keep.append(attribute)
-
-    if len(keep) > 1:
-
-        fact = fact.merge(
-            d[keep],
-            on=key,
-            how="left",
-            validate="many_to_one"
-        )
-
-    return fact
-
-from pathlib import Path
-import pandas as pd
 
 # ============================================================
 # LOAD DATA
@@ -114,137 +78,83 @@ import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parent
 
-CSV_PATH = (
-    BASE_DIR
-    / "data_final"
-    / "data_final"
-    / "fact_pinjaman_final.csv"
-)
+# Struktur repository saat ini:
+# Dashboard-Kredit/
+# ├── app.py
+# └── data_final/
+#     └── data_final/
+#         └── fact_pinjaman_final.csv
+#
+# Beberapa fallback disediakan supaya path tetap aman jika
+# struktur folder dipindahkan.
 
-fact = pd.read_csv(CSV_PATH)
+candidate_paths = [
+    BASE_DIR / "data_final" / "data_final" / "fact_pinjaman_final.csv",
+    BASE_DIR / "data_final" / "fact_pinjaman_final.csv",
+    BASE_DIR / "fact_pinjaman_final.csv",
+]
+
+CSV_PATH = next((p for p in candidate_paths if p.exists()), None)
+
+if CSV_PATH is None:
+    st.error("File fact_pinjaman_final.csv tidak ditemukan.")
+    st.write("Folder aplikasi:", str(BASE_DIR))
+    st.write(
+        "Path yang dicari:",
+        [str(p) for p in candidate_paths]
+    )
+    st.stop()
+
+try:
+    fact = pd.read_csv(CSV_PATH, low_memory=False)
+except Exception as e:
+    st.error(f"Gagal membaca file CSV: {e}")
+    st.stop()
 
 # ============================================================
-# TAMBAHKAN DIMENSI KE FACT
+# RAPikan NAMA KOLOM DUPLIKAT
 # ============================================================
+# Dataset final seharusnya cukup menggunakan satu kolom untuk
+# setiap nama. Jika ada nama kolom duplikat akibat merge lama,
+# ambil kemunculan pertama.
 
-fact = add_dim(
-    fact,
-    dim_nasabah,
-    "nasabah_id",
-    [
-        "nik_terenkripsi",
-        "tanggal_lahir",
-        "jenis_kelamin",
-        "jenis_usaha",
-        "pendapatan_bulanan",
-        "lama_usaha_tahun",
-        "kota",
-        "provinsi"
-    ]
-)
-
-
-fact = add_dim(
-    fact,
-    dim_produk,
-    "produk_id",
-    [
-        "nama_produk",
-        "segmen",
-        "plafon_min",
-        "plafon_maks",
-        "bunga_acuan_tahunan"
-    ]
-)
-
-
-fact = add_dim(
-    fact,
-    dim_cabang,
-    "cabang_id",
-    [
-        "nama_cabang",
-        "kota",
-        "provinsi",
-        "wilayah",
-        "tanggal_operasional"
-    ]
-)
-
-
-fact = add_dim(
-    fact,
-    dim_petugas,
-    "petugas_id",
-    [
-        "nama_petugas",
-        "status_kepegawaian"
-    ]
-)
-
+if fact.columns.duplicated().any():
+    fact = fact.loc[:, ~fact.columns.duplicated()].copy()
 
 # ============================================================
 # IDENTIFIKASI KOLOM
 # ============================================================
 
-pid = col(
+pid = find_col(fact, ["pinjaman_id"])
+
+date = find_col(fact, ["tanggal_akad"])
+
+plafon = find_col(
     fact,
-    ["pinjaman_id"]
+    ["plafon", "jumlah_pinjaman", "nilai_pinjaman"]
 )
 
-
-date = col(
+kewajiban = find_col(
     fact,
-    ["tanggal_akad"]
+    ["total_kewajiban"]
 )
 
-
-plafon = col(
+realisasi = find_col(
     fact,
-    [
-        "plafon",
-        "jumlah_pinjaman",
-        "nilai_pinjaman"
-    ]
+    ["total_realisasi", "total_realisasi_pembayaran"]
 )
 
-
-kewajiban = col(
+baki = find_col(
     fact,
-    [
-        "total_kewajiban"
-    ]
+    ["baki_debet", "baki_debet_berjalan"]
 )
 
-
-realisasi = col(
+agunan = find_col(
     fact,
-    [
-        "total_realisasi",
-        "total_realisasi_pembayaran"
-    ]
+    ["total_nilai_agunan", "nilai_agunan"]
 )
 
-
-baki = col(
-    fact,
-    [
-        "baki_debet",
-        "baki_debet_berjalan"
-    ]
-)
-
-
-agunan = col(
-    fact,
-    [
-        "total_nilai_agunan",
-        "nilai_agunan"
-    ]
-)
-
-
-tunggakan = col(
+tunggakan = find_col(
     fact,
     [
         "hari_tunggakan_terlama",
@@ -253,16 +163,12 @@ tunggakan = col(
     ]
 )
 
-
-kolek = col(
+kolek = find_col(
     fact,
-    [
-        "kode_kolektibilitas"
-    ]
+    ["kode_kolektibilitas"]
 )
 
-
-kolek_nama = col(
+kolek_nama = find_col(
     fact,
     [
         "kolektibilitas",
@@ -271,50 +177,119 @@ kolek_nama = col(
     ]
 )
 
+status = find_col(
+    fact,
+    ["status_pinjaman", "status"]
+)
 
-status = col(
+provinsi = find_col(
+    fact,
+    ["provinsi", "provinsi_nasabah"]
+)
+
+wilayah = find_col(
+    fact,
+    ["wilayah", "wilayah_cabang"]
+)
+
+nama_cabang = find_col(
+    fact,
+    ["nama_cabang", "nama_cabang_cabang"]
+)
+
+nama_produk = find_col(
+    fact,
+    ["nama_produk", "nama_produk_produk"]
+)
+
+nama_petugas = find_col(
+    fact,
+    ["nama_petugas", "nama_petugas_petugas"]
+)
+
+jenis_usaha = find_col(
     fact,
     [
-        "status_pinjaman",
-        "status"
+        "jenis_usaha",
+        "jenis_usaha_nasabah",
+        "jenis_usaha_dim"
     ]
 )
 
-
 # ============================================================
-# DATA TIDAK DIBERSIHKAN
-# ============================================================
-#
-# Data asli tetap dipertahankan.
-# Tidak ada:
-# - dropna
-# - drop_duplicates
-# - filter is_batal
-# - filter segmen
-# - penghapusan baris
-#
-# Hanya tanggal digunakan untuk membuat tahun/periode
-# untuk kebutuhan visualisasi.
+# VALIDASI KOLOM UTAMA
 # ============================================================
 
-if date:
+if pid is None:
+    st.error(
+        "Kolom 'pinjaman_id' tidak ditemukan pada "
+        "fact_pinjaman_final.csv."
+    )
+    st.write("Kolom yang tersedia:", fact.columns.tolist())
+    st.stop()
 
+# ============================================================
+# KONVERSI NUMERIK
+# ============================================================
+
+numeric_cols = [
+    plafon,
+    kewajiban,
+    realisasi,
+    baki,
+    agunan,
+    tunggakan,
+    kolek,
+]
+
+for c in numeric_cols:
+    if c is not None and c in fact.columns:
+        fact[c] = safe_numeric(fact[c])
+
+# ============================================================
+# TANGGAL
+# ============================================================
+
+if date is not None and date in fact.columns:
     fact[date] = pd.to_datetime(
         fact[date],
         errors="coerce"
     )
 
-    fact["tahun_dashboard"] = (
-        fact[date]
-        .dt.year
-    )
-
+    fact["tahun_dashboard"] = fact[date].dt.year
     fact["periode_dashboard"] = (
         fact[date]
         .dt.to_period("M")
         .astype(str)
     )
+else:
+    fact["tahun_dashboard"] = np.nan
+    fact["periode_dashboard"] = ""
 
+# ============================================================
+# DEFINISI NPL
+# ============================================================
+# NPL = kolektibilitas 3, 4, dan 5.
+# Dibuat pada DATA FACT sebelum filter agar selalu tersedia.
+
+if kolek is not None and kolek in fact.columns:
+    fact["_kode_kolek_num"] = safe_numeric(fact[kolek])
+
+    fact["is_npl"] = (
+        fact["_kode_kolek_num"]
+        .isin([3, 4, 5])
+        .astype(int)
+    )
+elif "is_npl" in fact.columns:
+    fact["is_npl"] = (
+        fact["is_npl"]
+        .astype(str)
+        .str.lower()
+        .isin(["1", "true", "yes", "y", "npl"])
+        .astype(int)
+    )
+else:
+    fact["is_npl"] = 0
 
 # ============================================================
 # JUMLAH DATA ASLI
@@ -323,42 +298,31 @@ if date:
 total_data_asli = len(fact)
 
 # ============================================================
-# FILTER
+# FILTER SIDEBAR
 # ============================================================
 
 st.sidebar.header("🔎 Filter")
 
 # Tahun
+tahun_dipilih = []
 if "tahun_dashboard" in fact.columns:
+    tahun_series = fact["tahun_dashboard"].dropna()
 
-    tahun_list = sorted(
-        fact["tahun_dashboard"]
-        .dropna()
-        .astype(int)
-        .unique()
-        .tolist()
-    )
+    if len(tahun_series) > 0:
+        tahun_list = sorted(
+            tahun_series.astype(int).unique().tolist()
+        )
 
-    tahun_dipilih = st.sidebar.multiselect(
-        "Tahun",
-        tahun_list,
-        default=[]
-    )
-
-else:
-    tahun_dipilih = []
-
+        tahun_dipilih = st.sidebar.multiselect(
+            "Tahun",
+            tahun_list,
+            default=[]
+        )
 
 # Provinsi
-if "provinsi" in fact.columns:
-
-    provinsi_list = sorted(
-        fact["provinsi"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
+provinsi_dipilih = []
+if provinsi is not None:
+    provinsi_list = unique_values(fact, provinsi)
 
     provinsi_dipilih = st.sidebar.multiselect(
         "Provinsi",
@@ -366,20 +330,10 @@ if "provinsi" in fact.columns:
         default=[]
     )
 
-else:
-    provinsi_dipilih = []
-
-
 # Wilayah
-if "wilayah" in fact.columns:
-
-    wilayah_list = sorted(
-        fact["wilayah"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
+wilayah_dipilih = []
+if wilayah is not None:
+    wilayah_list = unique_values(fact, wilayah)
 
     wilayah_dipilih = st.sidebar.multiselect(
         "Wilayah",
@@ -387,20 +341,10 @@ if "wilayah" in fact.columns:
         default=[]
     )
 
-else:
-    wilayah_dipilih = []
-
-
 # Cabang
-if "nama_cabang" in fact.columns:
-
-    cabang_list = sorted(
-        fact["nama_cabang"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
+cabang_dipilih = []
+if nama_cabang is not None:
+    cabang_list = unique_values(fact, nama_cabang)
 
     cabang_dipilih = st.sidebar.multiselect(
         "Cabang",
@@ -408,30 +352,16 @@ if "nama_cabang" in fact.columns:
         default=[]
     )
 
-else:
-    cabang_dipilih = []
-
-
 # Produk
-if "nama_produk" in fact.columns:
-
-    produk_list = sorted(
-        fact["nama_produk"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
+produk_dipilih = []
+if nama_produk is not None:
+    produk_list = unique_values(fact, nama_produk)
 
     produk_dipilih = st.sidebar.multiselect(
         "Produk",
         produk_list,
         default=[]
     )
-
-else:
-    produk_dipilih = []
-
 
 # ============================================================
 # FILTER DATA
@@ -440,57 +370,37 @@ else:
 df = fact.copy()
 
 if tahun_dipilih:
-
     df = df[
-        df["tahun_dashboard"]
-        .isin(tahun_dipilih)
+        df["tahun_dashboard"].isin(tahun_dipilih)
     ]
 
-if provinsi_dipilih:
-
+if provinsi_dipilih and provinsi is not None:
     df = df[
-        df["provinsi"]
+        df[provinsi]
         .astype(str)
         .isin(provinsi_dipilih)
     ]
 
-if wilayah_dipilih:
-
+if wilayah_dipilih and wilayah is not None:
     df = df[
-        df["wilayah"]
+        df[wilayah]
         .astype(str)
         .isin(wilayah_dipilih)
     ]
 
-if cabang_dipilih:
-
+if cabang_dipilih and nama_cabang is not None:
     df = df[
-        df["nama_cabang"]
+        df[nama_cabang]
         .astype(str)
         .isin(cabang_dipilih)
     ]
 
-if produk_dipilih:
-
+if produk_dipilih and nama_produk is not None:
     df = df[
-        df["nama_produk"]
+        df[nama_produk]
         .astype(str)
         .isin(produk_dipilih)
     ]
-
-
-# ============================================================
-# DEFINISI NPL
-# ============================================================
-
-if kolek:
-
-    df["is_npl"] = df[kolek].isin([3, 4, 5])
-
-else:
-
-    df["is_npl"] = False
-
 
 # ============================================================
 # JUDUL
@@ -498,25 +408,29 @@ else:
 
 st.title("💳 Dashboard Risiko & Collection Kredit Mikro")
 
+st.caption(
+    f"Sumber data: {CSV_PATH.relative_to(BASE_DIR) if CSV_PATH.is_relative_to(BASE_DIR) else CSV_PATH}"
+)
+
 # ============================================================
 # RINGKASAN PORTOFOLIO
 # ============================================================
 
 jumlah_pinjaman = (
     df[pid].nunique()
-    if pid
+    if pid in df.columns
     else len(df)
 )
 
 total_kewajiban = (
     df[kewajiban].sum()
-    if kewajiban
+    if kewajiban is not None and kewajiban in df.columns
     else 0
 )
 
 total_realisasi = (
     df[realisasi].sum()
-    if realisasi
+    if realisasi is not None and realisasi in df.columns
     else 0
 )
 
@@ -528,7 +442,9 @@ npl_rate = (
 
 avg_dpd = (
     df[tunggakan].mean()
-    if tunggakan and len(df) > 0
+    if tunggakan is not None
+    and tunggakan in df.columns
+    and len(df) > 0
     else np.nan
 )
 
@@ -551,7 +467,7 @@ with k3:
         "Total Realisasi Pembayaran",
         rupiah(total_realisasi)
     )
-    
+
 with k4:
     st.metric(
         "NPL",
@@ -564,588 +480,518 @@ with k5:
         f"{avg_dpd:.1f} hari"
         if pd.notna(avg_dpd)
         else "N/A"
-    )   
-    
+    )
+
 # ============================================================
 # NPL PER CABANG
 # ============================================================
 
 st.divider()
-
 st.header("NPL Berdasarkan Cabang")
 
-branch_npl = (
-
-    df.groupby("nama_cabang")
-
-    .agg(
-        jumlah_pinjaman=(
-            pid,
-            "nunique"
-        ) if pid else (
-            "nama_cabang",
-            "size"
-        ),
-
-        jumlah_npl=(
-            "is_npl",
-            "sum"
+if nama_cabang is not None:
+    branch_npl = (
+        df.groupby(nama_cabang, dropna=False)
+        .agg(
+            jumlah_pinjaman=(
+                pid,
+                "nunique"
+            ),
+            jumlah_npl=(
+                "is_npl",
+                "sum"
+            )
         )
+        .reset_index()
     )
 
-    .reset_index()
-)
+    branch_npl["npl_rate"] = np.where(
+        branch_npl["jumlah_pinjaman"] > 0,
+        branch_npl["jumlah_npl"]
+        / branch_npl["jumlah_pinjaman"],
+        0
+    )
 
-branch_npl["npl_rate"] = (
-    branch_npl["jumlah_npl"]
-    /
-    branch_npl["jumlah_pinjaman"]
-)
+    branch_npl["npl_persen"] = (
+        branch_npl["npl_rate"] * 100
+    )
 
-branch_npl["npl_persen"] = (
-    branch_npl["npl_rate"] * 100
-)
+    branch_npl = branch_npl.sort_values(
+        "npl_rate",
+        ascending=False
+    )
 
-branch_npl = branch_npl.sort_values(
-    "npl_rate",
-    ascending=False
-)
+    if len(branch_npl) > 0:
+        worst_branch = branch_npl.iloc[0]
 
+        a, b = st.columns(2)
 
-worst_branch = branch_npl.iloc[0]
+        with a:
+            st.metric(
+                "Cabang dengan NPL Tertinggi",
+                str(worst_branch[nama_cabang])
+            )
 
+        with b:
+            st.metric(
+                "NPL Tertinggi",
+                f"{worst_branch['npl_rate'] * 100:.2f}%"
+            )
 
-a, b = st.columns(2)
+        fig_npl = px.bar(
+            branch_npl,
+            x=nama_cabang,
+            y="npl_persen",
+            text="npl_persen",
+            labels={
+                nama_cabang: "Cabang",
+                "npl_persen": "NPL (%)"
+            }
+        )
 
-a.metric(
-    "Cabang dengan NPL Tertinggi",
-    worst_branch["nama_cabang"]
-)
+        fig_npl.update_traces(
+            texttemplate="%{text:.2f}%",
+            textposition="outside"
+        )
 
-b.metric(
-    "NPL Tertinggi",
-    f"{worst_branch['npl_rate'] * 100:.2f}%"
-)
+        fig_npl.update_layout(
+            xaxis_title="",
+            yaxis_title="NPL (%)"
+        )
 
-
-fig_npl = px.bar(
-    branch_npl,
-    x="nama_cabang",
-    y="npl_persen",
-    text="npl_persen",
-    labels={
-        "nama_cabang": "Cabang",
-        "npl_persen": "NPL (%)"
-    }
-)
-
-fig_npl.update_traces(
-    texttemplate="%{text:.2f}%",
-    textposition="outside"
-)
-
-fig_npl.update_layout(
-    xaxis_title="",
-    yaxis_title="NPL (%)"
-)
-
-st.plotly_chart(
-    fig_npl,
-    use_container_width=True
-)
-
+        st.plotly_chart(
+            fig_npl,
+            use_container_width=True
+        )
+    else:
+        st.info("Tidak ada data cabang pada filter yang dipilih.")
+else:
+    st.info("Kolom nama cabang tidak tersedia.")
 
 # ============================================================
 # DPD PER PRODUK
 # ============================================================
 
 st.divider()
-
 st.header("Rata-rata DPD Berdasarkan Produk")
 
-product_dpd = (
-
-    df.groupby("nama_produk")
-
-    .agg(
-        rata_rata_dpd=(
-            tunggakan,
-            "mean"
-        ),
-
-        jumlah_pinjaman=(
-            pid,
-            "nunique"
-        ) if pid else (
-            "nama_produk",
-            "size"
+if nama_produk is not None and tunggakan is not None:
+    product_dpd = (
+        df.groupby(nama_produk, dropna=False)
+        .agg(
+            rata_rata_dpd=(
+                tunggakan,
+                "mean"
+            ),
+            jumlah_pinjaman=(
+                pid,
+                "nunique"
+            )
+        )
+        .reset_index()
+        .sort_values(
+            "rata_rata_dpd",
+            ascending=False
         )
     )
 
-    .reset_index()
-
-    .sort_values(
-        "rata_rata_dpd",
-        ascending=False
+    product_dpd = product_dpd.dropna(
+        subset=["rata_rata_dpd"]
     )
-)
 
+    if len(product_dpd) > 0:
+        worst_product = product_dpd.iloc[0]
 
-worst_product = product_dpd.iloc[0]
+        a, b = st.columns(2)
 
+        with a:
+            st.metric(
+                "Produk dengan DPD Tertinggi",
+                str(worst_product[nama_produk])
+            )
 
-a, b = st.columns(2)
+        with b:
+            st.metric(
+                "Rata-rata DPD Tertinggi",
+                f"{worst_product['rata_rata_dpd']:.1f} hari"
+            )
 
-a.metric(
-    "Produk dengan DPD Tertinggi",
-    worst_product["nama_produk"]
-)
+        fig_dpd = px.bar(
+            product_dpd,
+            x=nama_produk,
+            y="rata_rata_dpd",
+            text="rata_rata_dpd",
+            labels={
+                nama_produk: "Produk Kredit",
+                "rata_rata_dpd": "Rata-rata DPD (Hari)"
+            }
+        )
 
-b.metric(
-    "Rata-rata DPD Tertinggi",
-    f"{worst_product['rata_rata_dpd']:.1f} hari"
-)
+        fig_dpd.update_traces(
+            texttemplate="%{text:.1f}",
+            textposition="outside"
+        )
 
+        fig_dpd.update_layout(
+            xaxis_tickangle=-45,
+            xaxis_title="",
+            yaxis_title="Hari"
+        )
 
-fig_dpd = px.bar(
-    product_dpd,
-    x="nama_produk",
-    y="rata_rata_dpd",
-    text="rata_rata_dpd",
-    labels={
-        "nama_produk": "Produk Kredit",
-        "rata_rata_dpd": "Rata-rata DPD (Hari)"
-    }
-)
-
-fig_dpd.update_traces(
-    texttemplate="%{text:.1f}",
-    textposition="outside"
-)
-
-fig_dpd.update_layout(
-    xaxis_tickangle=-45,
-    xaxis_title="",
-    yaxis_title="Hari"
-)
-
-st.plotly_chart(
-    fig_dpd,
-    use_container_width=True
-)
-
+        st.plotly_chart(
+            fig_dpd,
+            use_container_width=True
+        )
+    else:
+        st.info("Tidak ada data DPD pada filter yang dipilih.")
+else:
+    st.info("Kolom produk atau DPD tidak tersedia.")
 
 # ============================================================
 # NPL BERDASARKAN AGUNAN
 # ============================================================
 
 st.divider()
-
 st.header("NPL Berdasarkan Status Agunan")
 
-df["status_agunan"] = np.where(
-    df[agunan] > 0,
-    "Dengan Agunan",
-    "Tanpa Agunan"
-)
-
-
-agunan_npl = (
-
-    df.groupby("status_agunan")
-
-    .agg(
-        jumlah_pinjaman=(
-            pid,
-            "nunique"
-        ) if pid else (
-            "status_agunan",
-            "size"
-        ),
-
-        jumlah_npl=(
-            "is_npl",
-            "sum"
-        )
+if agunan is not None:
+    df["status_agunan"] = np.where(
+        df[agunan].fillna(0) > 0,
+        "Dengan Agunan",
+        "Tanpa Agunan"
     )
 
-    .reset_index()
-)
+    agunan_npl = (
+        df.groupby("status_agunan", dropna=False)
+        .agg(
+            jumlah_pinjaman=(
+                pid,
+                "nunique"
+            ),
+            jumlah_npl=(
+                "is_npl",
+                "sum"
+            )
+        )
+        .reset_index()
+    )
 
+    agunan_npl["npl_rate"] = np.where(
+        agunan_npl["jumlah_pinjaman"] > 0,
+        agunan_npl["jumlah_npl"]
+        / agunan_npl["jumlah_pinjaman"],
+        0
+    )
 
-agunan_npl["npl_rate"] = (
-    agunan_npl["jumlah_npl"]
-    /
-    agunan_npl["jumlah_pinjaman"]
-)
+    agunan_npl["npl_persen"] = (
+        agunan_npl["npl_rate"] * 100
+    )
 
-
-agunan_npl["npl_persen"] = (
-    agunan_npl["npl_rate"] * 100
-)
-
-
-npl_agunan = (
-    agunan_npl.loc[
-        agunan_npl["status_agunan"]
-        == "Dengan Agunan",
+    npl_agunan = agunan_npl.loc[
+        agunan_npl["status_agunan"] == "Dengan Agunan",
         "npl_rate"
     ]
-)
 
-npl_tanpa_agunan = (
-    agunan_npl.loc[
-        agunan_npl["status_agunan"]
-        == "Tanpa Agunan",
+    npl_tanpa_agunan = agunan_npl.loc[
+        agunan_npl["status_agunan"] == "Tanpa Agunan",
         "npl_rate"
     ]
-)
 
+    npl_agunan = (
+        npl_agunan.iloc[0]
+        if len(npl_agunan)
+        else 0
+    )
 
-npl_agunan = (
-    npl_agunan.iloc[0]
-    if len(npl_agunan)
-    else 0
-)
+    npl_tanpa_agunan = (
+        npl_tanpa_agunan.iloc[0]
+        if len(npl_tanpa_agunan)
+        else 0
+    )
 
-npl_tanpa_agunan = (
-    npl_tanpa_agunan.iloc[0]
-    if len(npl_tanpa_agunan)
-    else 0
-)
+    selisih = abs(
+        npl_agunan - npl_tanpa_agunan
+    )
 
+    a, b, c = st.columns(3)
 
-selisih = abs(
-    npl_agunan
-    -
-    npl_tanpa_agunan
-)
+    with a:
+        st.metric(
+            "NPL Dengan Agunan",
+            f"{npl_agunan * 100:.2f}%"
+        )
 
+    with b:
+        st.metric(
+            "NPL Tanpa Agunan",
+            f"{npl_tanpa_agunan * 100:.2f}%"
+        )
 
-a, b, c = st.columns(3)
+    with c:
+        st.metric(
+            "Selisih NPL",
+            f"{selisih * 100:.2f} pp"
+        )
 
-a.metric(
-    "NPL Dengan Agunan",
-    f"{npl_agunan * 100:.2f}%"
-)
+    fig_agunan = px.bar(
+        agunan_npl,
+        x="status_agunan",
+        y="npl_persen",
+        text="npl_persen",
+        labels={
+            "status_agunan": "Status Agunan",
+            "npl_persen": "NPL (%)"
+        }
+    )
 
-b.metric(
-    "NPL Tanpa Agunan",
-    f"{npl_tanpa_agunan * 100:.2f}%"
-)
+    fig_agunan.update_traces(
+        texttemplate="%{text:.2f}%",
+        textposition="outside"
+    )
 
-c.metric(
-    "Selisih NPL",
-    f"{selisih * 100:.2f} pp"
-)
+    fig_agunan.update_layout(
+        xaxis_title="",
+        yaxis_title="NPL (%)"
+    )
 
-
-fig_agunan = px.bar(
-    agunan_npl,
-    x="status_agunan",
-    y="npl_persen",
-    text="npl_persen",
-    labels={
-        "status_agunan": "Status Agunan",
-        "npl_persen": "NPL (%)"
-    }
-)
-
-fig_agunan.update_traces(
-    texttemplate="%{text:.2f}%",
-    textposition="outside"
-)
-
-fig_agunan.update_layout(
-    xaxis_title="",
-    yaxis_title="NPL (%)"
-)
-
-st.plotly_chart(
-    fig_agunan,
-    use_container_width=True
-)
-
+    st.plotly_chart(
+        fig_agunan,
+        use_container_width=True
+    )
+else:
+    st.info("Kolom nilai agunan tidak tersedia.")
 
 # ============================================================
 # TUNGGAKAN PETUGAS DAN JENIS USAHA
 # ============================================================
 
 st.divider()
-
 st.header("Tunggakan Kredit")
 
-
 left, right = st.columns(2)
-
 
 # ------------------------------------------------------------
 # PETUGAS
 # ------------------------------------------------------------
 
 with left:
+    st.subheader("Petugas Kredit")
 
-    st.subheader(
-        "Petugas Kredit"
-    )
-
-
-    officer = (
-
-        df.groupby("nama_petugas")
-
-        .agg(
-            total_tunggakan=(
-                baki,
-                "sum"
-            ),
-
-            jumlah_pinjaman=(
-                pid,
-                "nunique"
-            ) if pid else (
-                "nama_petugas",
-                "size"
+    if nama_petugas is not None and baki is not None:
+        officer = (
+            df.groupby(nama_petugas, dropna=False)
+            .agg(
+                total_tunggakan=(
+                    baki,
+                    "sum"
+                ),
+                jumlah_pinjaman=(
+                    pid,
+                    "nunique"
+                )
+            )
+            .reset_index()
+            .sort_values(
+                "total_tunggakan",
+                ascending=False
             )
         )
 
-        .reset_index()
+        if len(officer) > 0:
+            top_officer = officer.iloc[0]
 
-        .sort_values(
-            "total_tunggakan",
-            ascending=False
-        )
+            st.metric(
+                "Tunggakan Terbesar",
+                str(top_officer[nama_petugas]),
+                rupiah(top_officer["total_tunggakan"])
+            )
 
-    )
+            fig_officer = px.bar(
+                officer.head(10),
+                x="total_tunggakan",
+                y=nama_petugas,
+                orientation="h",
+                text="total_tunggakan",
+                labels={
+                    nama_petugas: "Petugas Kredit",
+                    "total_tunggakan": "Total Tunggakan"
+                }
+            )
 
+            fig_officer.update_traces(
+                texttemplate="Rp %{text:,.0f}",
+                textposition="outside"
+            )
 
-    top_officer = officer.iloc[0]
-
-
-    st.metric(
-        "Tunggakan Terbesar",
-        top_officer["nama_petugas"],
-        rupiah(
-            top_officer[
-                "total_tunggakan"
-            ]
-        )
-    )
-
-
-    fig_officer = px.bar(
-        officer.head(10),
-        x="total_tunggakan",
-        y="nama_petugas",
-        orientation="h",
-        text="total_tunggakan",
-        labels={
-            "nama_petugas":
-                "Petugas Kredit",
-
-            "total_tunggakan":
-                "Total Tunggakan"
-        }
-    )
-
-
-    fig_officer.update_traces(
-        texttemplate="Rp %{text:,.0f}",
-        textposition="outside"
-    )
-
-
-    st.plotly_chart(
-        fig_officer,
-        use_container_width=True
-    )
-
+            st.plotly_chart(
+                fig_officer,
+                use_container_width=True
+            )
+        else:
+            st.info("Tidak ada data petugas.")
+    else:
+        st.info("Kolom petugas atau baki debet tidak tersedia.")
 
 # ------------------------------------------------------------
 # JENIS USAHA
 # ------------------------------------------------------------
 
 with right:
+    st.subheader("Jenis Usaha")
 
-    st.subheader(
-        "Jenis Usaha"
-    )
-
-
-    business = (
-
-        df.groupby(
-            "jenis_usaha",
-            dropna=False
-        )
-
-        .agg(
-            total_tunggakan=(
-                baki,
-                "sum"
-            ),
-
-            jumlah_pinjaman=(
-                pid,
-                "nunique"
-            ) if pid else (
-                "jenis_usaha",
-                "size"
+    if jenis_usaha is not None and baki is not None:
+        business = (
+            df.groupby(
+                jenis_usaha,
+                dropna=False
+            )
+            .agg(
+                total_tunggakan=(
+                    baki,
+                    "sum"
+                ),
+                jumlah_pinjaman=(
+                    pid,
+                    "nunique"
+                )
+            )
+            .reset_index()
+            .sort_values(
+                "total_tunggakan",
+                ascending=False
             )
         )
 
-        .reset_index()
+        if len(business) > 0:
+            top_business = business.iloc[0]
 
-        .sort_values(
-            "total_tunggakan",
-            ascending=False
-        )
-    )
+            st.metric(
+                "Tunggakan Terbesar",
+                str(top_business[jenis_usaha]),
+                rupiah(top_business["total_tunggakan"])
+            )
 
+            fig_business = px.bar(
+                business.head(10),
+                x="total_tunggakan",
+                y=jenis_usaha,
+                orientation="h",
+                text="total_tunggakan",
+                labels={
+                    jenis_usaha: "Jenis Usaha",
+                    "total_tunggakan": "Total Tunggakan"
+                }
+            )
 
-    top_business = business.iloc[0]
+            fig_business.update_traces(
+                texttemplate="Rp %{text:,.0f}",
+                textposition="outside"
+            )
 
-
-    st.metric(
-        "Tunggakan Terbesar",
-        str(
-            top_business[
-                "jenis_usaha"
-            ]
-        ),
-        rupiah(
-            top_business[
-                "total_tunggakan"
-            ]
-        )
-    )
-
-
-    fig_business = px.bar(
-        business.head(10),
-        x="total_tunggakan",
-        y="jenis_usaha",
-        orientation="h",
-        text="total_tunggakan",
-        labels={
-            "jenis_usaha":
-                "Jenis Usaha",
-
-            "total_tunggakan":
-                "Total Tunggakan"
-        }
-    )
-
-
-    fig_business.update_traces(
-        texttemplate="Rp %{text:,.0f}",
-        textposition="outside"
-    )
-
-
-    st.plotly_chart(
-        fig_business,
-        use_container_width=True
-    )
-
+            st.plotly_chart(
+                fig_business,
+                use_container_width=True
+            )
+        else:
+            st.info("Tidak ada data jenis usaha.")
+    else:
+        st.info("Kolom jenis usaha atau baki debet tidak tersedia.")
 
 # ============================================================
 # COLLECTION RATE
 # ============================================================
 
 st.divider()
-
 st.header("Collection Rate Berdasarkan Cabang")
 
 st.caption(
-    "Menunjukkan cabang dengan tingkat collection rate "
-    "terendah."
+    "Menunjukkan cabang dengan tingkat collection rate terendah."
 )
 
+if (
+    nama_cabang is not None
+    and realisasi is not None
+    and kewajiban is not None
+):
+    branch_collection = (
+        df.groupby(nama_cabang, dropna=False)
+        .agg(
+            total_realisasi=(
+                realisasi,
+                "sum"
+            ),
+            total_kewajiban=(
+                kewajiban,
+                "sum"
+            )
+        )
+        .reset_index()
+    )
 
-branch_collection = (
+    branch_collection["collection_rate"] = np.where(
+        branch_collection["total_kewajiban"] != 0,
+        branch_collection["total_realisasi"]
+        / branch_collection["total_kewajiban"],
+        0
+    )
 
-    df.groupby("nama_cabang")
-
-    .agg(
-        total_realisasi=(
-            realisasi,
-            "sum"
-        ),
-
-        total_kewajiban=(
-            kewajiban,
-            "sum"
+    branch_collection = (
+        branch_collection
+        .sort_values(
+            "collection_rate",
+            ascending=True
         )
     )
 
-    .reset_index()
-)
+    if len(branch_collection) > 0:
+        worst_collection = branch_collection.iloc[0]
 
+        a, b = st.columns(2)
 
-branch_collection["collection_rate"] = (
-    branch_collection["total_realisasi"]
-    /
-    branch_collection["total_kewajiban"]
-)
+        with a:
+            st.metric(
+                "Cabang dengan Collection Rate Terendah",
+                str(worst_collection[nama_cabang])
+            )
 
+        with b:
+            st.metric(
+                "Collection Rate Terendah",
+                f"{worst_collection['collection_rate'] * 100:.2f}%"
+            )
 
-branch_collection = (
-    branch_collection
-    .sort_values(
-        "collection_rate",
-        ascending=True
+        fig_collection = px.bar(
+            branch_collection,
+            x=nama_cabang,
+            y="collection_rate",
+            text="collection_rate",
+            labels={
+                nama_cabang: "Cabang",
+                "collection_rate": "Collection Rate"
+            }
+        )
+
+        fig_collection.update_traces(
+            texttemplate="%{text:.2%}",
+            textposition="outside"
+        )
+
+        fig_collection.update_layout(
+            yaxis_tickformat=".0%",
+            xaxis_title="",
+            yaxis_title="Collection Rate"
+        )
+
+        st.plotly_chart(
+            fig_collection,
+            use_container_width=True
+        )
+    else:
+        st.info("Tidak ada data collection rate.")
+else:
+    st.info(
+        "Kolom cabang, realisasi, atau kewajiban tidak tersedia."
     )
-)
-
-
-worst_collection = (
-    branch_collection.iloc[0]
-)
-
-
-a, b = st.columns(2)
-
-a.metric(
-    "Cabang dengan Collection Rate Terendah",
-    worst_collection["nama_cabang"]
-)
-
-b.metric(
-    "Collection Rate Terendah",
-    f"{worst_collection['collection_rate'] * 100:.2f}%"
-)
-
-
-fig_collection = px.bar(
-    branch_collection,
-    x="nama_cabang",
-    y="collection_rate",
-    text="collection_rate",
-    labels={
-        "nama_cabang": "Cabang",
-        "collection_rate": "Collection Rate"
-    }
-)
-
-
-fig_collection.update_traces(
-    texttemplate="%{text:.2%}",
-    textposition="outside"
-)
-
-
-fig_collection.update_layout(
-    yaxis_tickformat=".0%",
-    xaxis_title="",
-    yaxis_title="Collection Rate"
-)
-
-
-st.plotly_chart(
-    fig_collection,
-    use_container_width=True
-)
 
 # ============================================================
 # FOOTER
