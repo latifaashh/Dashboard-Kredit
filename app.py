@@ -904,8 +904,6 @@ with right:
 st.divider()
 st.header("Tingkat Keberhasilan Pembayaran Berdasarkan Cabang")
 
-)
-
 if (
     nama_cabang is not None
     and realisasi is not None
