@@ -110,7 +110,7 @@ def add_dim(
 # LOAD DATA
 # ============================================================
 
-DATA_PATH = "data_powerbi"
+DATA_PATH = "fact_pinjaman_final.csv"
 
 
 fact = pd.read_csv(
