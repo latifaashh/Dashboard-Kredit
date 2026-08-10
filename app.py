@@ -525,25 +525,22 @@ st.title("💳 Dashboard Risiko & Collection Kredit Mikro")
 st.header("Ringkasan Portofolio")
 
 jumlah_pinjaman = (
-    fact[pid].nunique()
+    df[pid].nunique()
     if pid
-    else len(fact)
+    else len(df)
 )
 
 total_kewajiban = (
-    fact[kewajiban].sum()
+    df[kewajiban].sum()
     if kewajiban
     else 0
 )
 
 total_realisasi = (
-    fact[realisasi].sum()
+    df[realisasi].sum()
     if realisasi
     else 0
 )
-# ============================================================
-# KPI UTAMA PORTOFOLIO
-# ============================================================
 
 k1, k2, k3 = st.columns(3)
 
