@@ -477,7 +477,7 @@ with k4:
 with k5:
     st.metric(
         "Rata-rata DPD",
-        f"{avg_dpd:.2f} hari"
+        f"{avg_dpd:.1f} hari"
         if pd.notna(avg_dpd)
         else "N/A"
     )
@@ -573,105 +573,79 @@ else:
 # ============================================================
 
 st.divider()
+st.header("Rata-rata DPD Berdasarkan Produk")
 
-st.header(
-    "Rata-rata DPD Berdasarkan Produk"
-)
-
-st.caption(
-    "Menunjukkan produk kredit dengan "
-    "rata-rata keterlambatan pembayaran tertinggi."
-)
-
-
-# Gabungkan detail angsuran dengan produk
-
-detail_angsuran_produk = detail_dpd.merge(
-    fact[
-        [pid, "produk_id", nama_produk]
-    ].drop_duplicates(pid),
-    left_on="pinjaman_id",
-    right_on=pid,
-    how="left"
-)
-
-
-dpd_produk = (
-    detail_angsuran_produk
-    .groupby(
-        ["produk_id", nama_produk],
-        as_index=False
-    )
-    .agg(
-        rata_rata_DPD=(
-            "hari_keterlambatan",
-            "mean"
-        ),
-
-        jumlah_angsuran=(
-            "angsuran_ke",
-            "count"
-        )
-    )
-    .sort_values(
-        "rata_rata_DPD",
-        ascending=False
-    )
-)
-
-
-if len(dpd_produk) > 0:
-
-    produk_tertinggi = dpd_produk.iloc[0]
-
-    a, b = st.columns(2)
-
-    with a:
-        st.metric(
-            "Produk dengan DPD Tertinggi",
-            str(
-                produk_tertinggi[
-                    nama_produk
-                ]
+if nama_produk is not None and tunggakan is not None:
+    product_dpd = (
+        df.groupby(nama_produk, dropna=False)
+        .agg(
+            rata_rata_dpd=(
+                tunggakan,
+                "mean"
+            ),
+            jumlah_pinjaman=(
+                pid,
+                "nunique"
             )
         )
+        .reset_index()
+        .sort_values(
+            "rata_rata_dpd",
+            ascending=False
+        )
+    )
 
-    with b:
-        st.metric(
-            "Rata-rata DPD Tertinggi",
-            f"{produk_tertinggi['rata_rata_DPD']:.2f} hari"
+    product_dpd = product_dpd.dropna(
+        subset=["rata_rata_dpd"]
+    )
+
+    if len(product_dpd) > 0:
+        worst_product = product_dpd.iloc[0]
+
+        a, b = st.columns(2)
+
+        with a:
+            st.metric(
+                "Produk dengan DPD Tertinggi",
+                str(worst_product[nama_produk])
+            )
+
+        with b:
+            st.metric(
+                "Rata-rata DPD Tertinggi",
+                f"{worst_product['rata_rata_dpd']:.1f} hari"
+            )
+
+        fig_dpd = px.bar(
+            product_dpd,
+            x=nama_produk,
+            y="rata_rata_dpd",
+            text="rata_rata_dpd",
+            labels={
+                nama_produk: "Produk Kredit",
+                "rata_rata_dpd": "Rata-rata DPD (Hari)"
+            }
         )
 
+        fig_dpd.update_traces(
+            texttemplate="%{text:.1f}",
+            textposition="outside"
+        )
 
-    fig_dpd = px.bar(
-        dpd_produk,
-        x=nama_produk,
-        y="rata_rata_DPD",
-        text="rata_rata_DPD",
-        labels={
-            nama_produk: "Produk Kredit",
-            "rata_rata_DPD": "Rata-rata DPD (Hari)"
-        }
-    )
+        fig_dpd.update_layout(
+            xaxis_tickangle=-45,
+            xaxis_title="",
+            yaxis_title="Hari"
+        )
 
-
-    fig_dpd.update_traces(
-        texttemplate="%{text:.2f} hari",
-        textposition="outside"
-    )
-
-
-    fig_dpd.update_layout(
-        xaxis_tickangle=-35,
-        xaxis_title="",
-        yaxis_title="Rata-rata DPD (Hari)"
-    )
-
-
-    st.plotly_chart(
-        fig_dpd,
-        use_container_width=True
-    )
+        st.plotly_chart(
+            fig_dpd,
+            use_container_width=True
+        )
+    else:
+        st.info("Tidak ada data DPD pada filter yang dipilih.")
+else:
+    st.info("Kolom produk atau DPD tidak tersedia.")
 
 # ============================================================
 # NPL BERDASARKAN AGUNAN
