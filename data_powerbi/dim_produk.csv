@@ -1,7 +1,0 @@
-produk_id,nama_produk,segmen,plafon_min,plafon_maks,bunga_acuan_tahunan
-PRD01,Kredit Modal Kerja Mikro,Mikro,2000000,25000000,24.0
-PRD02,Kredit Investasi Mikro,Mikro,5000000,50000000,21.0
-PRD03,Kredit Usaha Kecil,Kecil,25000000,200000000,18.0
-PRD04,Pembiayaan Musiman Pertanian,Mikro,3000000,30000000,22.5
-PRD05,Kredit Kelompok Tanggung Renteng,Ultra Mikro,1000000,10000000,27.0
-PRD06,Kredit Multiguna Pedagang,Mikro,2500000,40000000,23.5
