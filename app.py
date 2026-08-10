@@ -731,7 +731,7 @@ if agunan is not None:
     with c:
         st.metric(
             "Selisih NPL",
-            f"{selisih * 100:.2f} pp"
+            f"{selisih * 100:.2f} %"
         )
 
     fig_agunan = px.bar(
