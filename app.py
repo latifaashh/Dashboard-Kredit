@@ -902,10 +902,8 @@ with right:
 # ============================================================
 
 st.divider()
-st.header("Collection Rate Berdasarkan Cabang")
+st.header("Tingkat Keberhasilan Pembayaran Berdasarkan Cabang")
 
-st.caption(
-    "Menunjukkan cabang dengan tingkat collection rate terendah."
 )
 
 if (
