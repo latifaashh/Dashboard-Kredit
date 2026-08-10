@@ -78,16 +78,6 @@ def unique_values(df, column):
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Struktur repository saat ini:
-# Dashboard-Kredit/
-# ├── app.py
-# └── data_final/
-#     └── data_final/
-#         └── fact_pinjaman_final.csv
-#
-# Beberapa fallback disediakan supaya path tetap aman jika
-# struktur folder dipindahkan.
-
 candidate_paths = [
     BASE_DIR / "data_final" / "data_final" / "fact_pinjaman_final.csv",
     BASE_DIR / "data_final" / "fact_pinjaman_final.csv",
@@ -109,6 +99,93 @@ try:
     fact = pd.read_csv(CSV_PATH, low_memory=False)
 except Exception as e:
     st.error(f"Gagal membaca file CSV: {e}")
+    st.stop()
+
+# ------------------------------------------------------------
+# DETAIL ANGSURAN
+# ------------------------------------------------------------
+
+detail_candidate_paths = [
+
+    BASE_DIR / "data_final" / "data_final" / "detail_angsuran.csv",
+
+    BASE_DIR / "data_final" / "detail_angsuran.csv",
+
+    BASE_DIR / "detail_angsuran.csv",
+
+]
+
+
+DETAIL_ANGSURAN_PATH = next(
+    (
+        p
+        for p in detail_candidate_paths
+        if p.exists()
+    ),
+    None
+)
+
+
+if DETAIL_ANGSURAN_PATH is None:
+
+    st.error(
+        "File detail_angsuran.csv tidak ditemukan."
+    )
+
+    st.write(
+        "Path yang dicari:",
+        [
+            str(p)
+            for p in detail_candidate_paths
+        ]
+    )
+
+    st.stop()
+
+
+try:
+
+    detail_angsuran = pd.read_csv(
+        DETAIL_ANGSURAN_PATH,
+        low_memory=False
+    )
+
+except Exception as e:
+
+    st.error(
+        f"Gagal membaca detail_angsuran.csv: {e}"
+    )
+
+    st.stop()
+
+
+# ------------------------------------------------------------
+# KONVERSI DPD
+# ------------------------------------------------------------
+
+if "hari_keterlambatan" in detail_angsuran.columns:
+
+    detail_angsuran[
+        "hari_keterlambatan"
+    ] = pd.to_numeric(
+        detail_angsuran[
+            "hari_keterlambatan"
+        ],
+        errors="coerce"
+    )
+
+else:
+
+    st.error(
+        "Kolom 'hari_keterlambatan' "
+        "tidak ditemukan pada detail_angsuran.csv"
+    )
+
+    st.write(
+        "Kolom yang tersedia:",
+        detail_angsuran.columns.tolist()
+    )
+
     st.stop()
 
 # ============================================================
