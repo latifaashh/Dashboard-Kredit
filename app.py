@@ -342,19 +342,6 @@ if date:
 
 total_data_asli = len(fact)
 
-
-# ============================================================
-# SIDEBAR
-# ============================================================
-
-st.sidebar.header("🔎 Filter")
-
-
-st.sidebar.caption(
-    "Filter hanya digunakan untuk analisis. "
-    "Data asli tidak dihapus."
-)
-
 # ============================================================
 # FILTER
 # ============================================================
