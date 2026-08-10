@@ -523,12 +523,6 @@ else:
 
 st.title("💳 Dashboard Risiko & Collection Kredit Mikro")
 
-st.caption(
-    "Analisis kualitas portofolio kredit berdasarkan NPL, DPD, "
-    "agunan, tunggakan, dan collection rate."
-)
-
-
 # ============================================================
 # RINGKASAN PORTOFOLIO
 # ============================================================
