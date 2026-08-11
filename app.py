@@ -528,13 +528,13 @@ if nama_cabang is not None:
 
         with a:
             st.metric(
-                "Cabang dengan NPL Tertinggi",
+                "Cabang dengan Persentase Kredit Bermasalah Tertinggi",
                 str(worst_branch[nama_cabang])
             )
 
         with b:
             st.metric(
-                "NPL Tertinggi",
+                "Persentase Kredit Bermasalah Tertinggi",
                 f"{worst_branch['npl_rate'] * 100:.2f}%"
             )
 
@@ -606,13 +606,13 @@ if nama_produk is not None and tunggakan is not None:
 
         with a:
             st.metric(
-                "Produk dengan DPD Tertinggi",
+                "Produk dengan Keterlambatan Pembayaran Tertinggi",
                 str(worst_product[nama_produk])
             )
 
         with b:
             st.metric(
-                "Rata-rata DPD Tertinggi",
+                "Rata-rata Keterlambatan Pembayaran Tertinggi",
                 f"{worst_product['rata_rata_dpd']:.1f} hari"
             )
 
